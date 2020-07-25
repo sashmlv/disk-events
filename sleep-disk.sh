@@ -42,7 +42,6 @@ if [ ! -f "$SERVICE_FILE" ]; then
 
    cat > "$SERVICE_FILE" <<EOF
 [Unit]
-Description=Sleep-Disk
 
 [Service]
 ExecStart=$TARGET_JOB_FILE
