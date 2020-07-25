@@ -50,14 +50,7 @@ ExecStart=$TARGET_JOB_FILE
 EOF
 fi
 
-# UNINSTALL -----------------------------------------------------------------------------------------
-
-if [ "$command" == 'uninstall' ]; then
-
-   exit
-fi
-
-# CHECKS --------------------------------------------------------------------------------------------
+# INPUTS --------------------------------------------------------------------------------------------
 
 # reset bad command input
 if [ ! -z "$command" ] && [[ ! " ${COMMANDS[@]} " =~ " ${command} " ]]; then
@@ -65,27 +58,27 @@ if [ ! -z "$command" ] && [[ ! " ${COMMANDS[@]} " =~ " ${command} " ]]; then
    command=''
 fi
 
-# reset bad timeout input
-if [[ ! "$timeout" =~ $NUM_RGX ]]; then
-
-   timeout=''
-fi
-
-# INPUTS --------------------------------------------------------------------------------------------
-
 if [ -z "$command" ]; then
 
    echo 'Select command: '
    echo '1. set disk'
    echo '2. unset disk'
-   echo '3. quit'
+   echo '3. uninstall'
+   echo '4. quit'
    read command
    case "$command" in
       1) command='set';;
       2) command='unset';;
-      3) command='quit';;
+      3) command='uninstall';;
+      4) command='quit';;
       *) echo "Invalid option $command";;
    esac
+fi
+
+# reset bad timeout input
+if [[ ! "$timeout" =~ $NUM_RGX ]]; then
+
+   timeout=''
 fi
 
 # quit
@@ -107,6 +100,13 @@ while [ "$command" == 'set' ] && [[ ! "$timeout" =~ $NUM_RGX ]]; do
    echo 'Enter sleep timeout, in seconds: '
    read timeout
 done
+
+# UNINSTALL -----------------------------------------------------------------------------------------
+
+if [ "$command" == 'uninstall' ]; then
+
+   exit
+fi
 
 # COFIGURE -----------------------------------------------------------------------------------------
 
