@@ -9,7 +9,7 @@ SOURCE_JOB_FILE="./$NAME-job.sh"
 TARGET_JOB_FILE="/home/$USER/bin/$NAME-job.sh"
 CONFIG_FILE="/home/$USER/bin/$NAME.conf"
 SERVICE_FILE="/etc/systemd/system/$NAME.service"
-TMP_FILE='./file.tmp'
+TMP_FILE='./temporary_file.tmp'
 NUM_RGX='^[0-9]+$' # it's number
 UNSAFE_RGX="[\0\`\\\/:\;\*\"\'\<\>\|\.\,]" # UNSAFE SYMBOLS: \0 ` \ / : ; * " ' < > | . ,
 DISK_LABEL_RGX='^After=.+\.mount$' # contains disk label
@@ -21,6 +21,12 @@ key=
 value=
 SED_CUT_CONFIG_KEY="s/^\(<\)\|\(><.\+>\)$//g" # cut key from config line
 SED_CUT_CONFIG_VAL="s/^\(<.\+><\)\|\(>\)$//g" # cut val from config line
+
+function clean_exit {
+
+   rm -f "$TMP_FILE"
+   exit
+}
 
 # INSTALL -------------------------------------------------------------------------------------------
 
@@ -50,7 +56,7 @@ ExecStart=$TARGET_JOB_FILE
 EOF
 fi
 
-# INPUTS --------------------------------------------------------------------------------------------
+# COMMAND -------------------------------------------------------------------------------------------
 
 # reset bad command input
 if [ ! -z "$command" ] && [[ ! " ${COMMANDS[@]} " =~ " ${command} " ]]; then
@@ -75,14 +81,25 @@ if [ -z "$command" ]; then
    esac
 fi
 
+# QUIT ----------------------------------------------------------------------------------------------
+
+if [ "$command" == 'quit' ]; then echo "$command"; exit; fi
+
+# UNINSTALL -----------------------------------------------------------------------------------------
+
+if [ "$command" == 'uninstall' ]; then
+
+   rm -f "$CONFIG_FILE" "$TARGET_JOB_FILE" "$SERVICE_FILE" "$TMP_FILE"
+   exit
+fi
+
+# CHECKS --------------------------------------------------------------------------------------------
+
 # reset bad timeout input
 if [[ ! "$timeout" =~ $NUM_RGX ]]; then
 
    timeout=''
 fi
-
-# quit
-if [ "$command" == 'quit' ]; then echo "$command"; exit; fi
 
 while [ -z "$disk_label" ] || [[ "$disk_label" =~ $UNSAFE_RGX ]]; do
 
@@ -101,14 +118,7 @@ while [ "$command" == 'set' ] && [[ ! "$timeout" =~ $NUM_RGX ]]; do
    read timeout
 done
 
-# UNINSTALL -----------------------------------------------------------------------------------------
-
-if [ "$command" == 'uninstall' ]; then
-
-   exit
-fi
-
-# COFIGURE -----------------------------------------------------------------------------------------
+# SET DISK ------------------------------------------------------------------------------------------
 
 # set disk
 if [ "$command" == 'set' ]; then
@@ -128,7 +138,7 @@ if [ "$command" == 'set' ]; then
 
             echo "Wrong line in the config:"
             echo "$line"
-            exit
+            clean_exit
          fi
       fi
    done < "$CONFIG_FILE"
@@ -149,7 +159,7 @@ if [ "$command" == 'set' ]; then
    if [ -z "$mount_point" ]; then
 
       echo "Can't find mount point, try mount disk"
-      exit
+      clean_exit
    fi
 
    # add service lines and restart service
@@ -162,9 +172,11 @@ if [ "$command" == 'set' ]; then
    systemctl start "$NAME.service"
 
    echo "$command $disk_label, will sleep after $timeout seconds"
+fi
 
-# unset disk
-elif [ "$command" == 'unset' ]; then
+# UNSET DISK ----------------------------------------------------------------------------------------
+
+if [ "$command" == 'unset' ]; then
 
    sed "/$disk_label/d" "$CONFIG_FILE" > "$TMP_FILE"
    mv "$TMP_FILE" "$CONFIG_FILE"
