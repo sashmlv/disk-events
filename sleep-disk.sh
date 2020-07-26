@@ -28,6 +28,14 @@ function clean_exit {
    exit
 }
 
+# CHECK UTILS ---------------------------------------------------------------------------------------
+
+if ! [ -x "$(command -v fswatch)" ]; then
+
+   echo 'fswatch not found, please install fswatch'
+   exit
+fi
+
 # INSTALL -------------------------------------------------------------------------------------------
 
 # add config file
