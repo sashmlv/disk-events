@@ -30,13 +30,13 @@ function clean_exit {
 
 # CHECK UTILS ---------------------------------------------------------------------------------------
 
-if ! [ -x "$(command -v hdparm)" ]; then
+if [ ! -x "$(command -v hdparm)" ]; then
 
    echo 'hdparm not found, please install hdparm'
    exit
 fi
 
-if ! [ -x "$(command -v fswatch)" ]; then
+if [ ! -x "$(command -v fswatch)" ]; then
 
    echo 'fswatch not found, please install fswatch'
    exit
@@ -103,6 +103,9 @@ if [ "$command" == 'quit' ]; then echo "$command"; exit; fi
 
 if [ "$command" == 'uninstall' ]; then
 
+   systemctl stop "$NAME.service"
+   systemctl disable "$NAME.service"
+   systemctl daemon-reload
    rm -f "$CONFIG_FILE" "$TARGET_JOB_FILE" "$SERVICE_FILE" "$TMP_FILE"
    exit
 fi
@@ -184,6 +187,7 @@ if [ "$command" == 'set' ]; then
 
    systemctl enable "$NAME.service"
    systemctl start "$NAME.service"
+   systemctl daemon-reload
 
    echo "$command $disk_label, will sleep after $timeout seconds"
 fi
@@ -197,6 +201,7 @@ if [ "$command" == 'unset' ]; then
 
    systemctl enable "$NAME.service"
    systemctl start "$NAME.service"
+   systemctl daemon-reload
 
    echo "$command $disk_label"
 fi
