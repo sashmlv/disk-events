@@ -1,10 +1,13 @@
 #!/bin/bash
 
-command=$1
+declare -A config
+key=
+value=
+cmd=$1
 disk_label=$2
 timeout=$3
 NAME='sleep-disk'
-COMMANDS=("set" "unset" "uninstall" "quit")
+COMMANDS=('set' 'unset' 'uninstall' 'quit')
 SOURCE_JOB_FILE="./$NAME-job.sh"
 TARGET_JOB_FILE="/home/$USER/bin/$NAME-job.sh"
 CONFIG_FILE="/home/$USER/bin/$NAME.conf"
@@ -14,13 +17,9 @@ NUM_RGX='^[0-9]+$' # it's number
 UNSAFE_RGX="[\0\`\\\/:\;\*\"\'\<\>\|\.\,]" # UNSAFE SYMBOLS: \0 ` \ / : ; * " ' < > | . ,
 DISK_LABEL_RGX='^After=.+\.mount$' # contains disk label
 CONFIG_RGX='^<.+><[0-9]+>$' # match config line
-SED_CUT_LABEL="s/\(After=.\+\-\|\.mount\)//g" # cut disk label
-
-declare -A config
-key=
-value=
-SED_CUT_CONFIG_KEY="s/^\(<\)\|\(><.\+>\)$//g" # cut key from config line
-SED_CUT_CONFIG_VAL="s/^\(<.\+><\)\|\(>\)$//g" # cut val from config line
+SED_CUT_LABEL='s/\(After=.\+\-\|\.mount\)//g' # cut disk label
+SED_CUT_CONFIG_KEY='s/^\(<\)\|\(><.\+>\)$//g' # cut key from config line
+SED_CUT_CONFIG_VAL='s/^\(<.\+><\)\|\(>\)$//g' # cut val from config line
 
 function clean_exit {
 
@@ -73,35 +72,35 @@ fi
 # COMMAND -------------------------------------------------------------------------------------------
 
 # reset bad command input
-if [ ! -z "$command" ] && [[ ! " ${COMMANDS[@]} " =~ " ${command} " ]]; then
+if [ ! -z "$cmd" ] && [[ ! " ${COMMANDS[@]} " =~ " ${cmd} " ]]; then
 
-   command=''
+   cmd=''
 fi
 
-if [ -z "$command" ]; then
+if [ -z "$cmd" ]; then
 
    echo 'Select command: '
    echo '1. set disk'
    echo '2. unset disk'
    echo '3. uninstall'
    echo '4. quit'
-   read command
-   case "$command" in
-      1) command='set';;
-      2) command='unset';;
-      3) command='uninstall';;
-      4) command='quit';;
-      *) echo "Invalid option $command";;
+   read cmd
+   case "$cmd" in
+      1) cmd='set';;
+      2) cmd='unset';;
+      3) cmd='uninstall';;
+      4) cmd='quit';;
+      *) echo "Invalid option $cmd";;
    esac
 fi
 
 # QUIT ----------------------------------------------------------------------------------------------
 
-if [ "$command" == 'quit' ]; then echo "$command"; exit; fi
+if [ "$cmd" == 'quit' ]; then echo "$cmd"; exit; fi
 
 # UNINSTALL -----------------------------------------------------------------------------------------
 
-if [ "$command" == 'uninstall' ]; then
+if [ "$cmd" == 'uninstall' ]; then
 
    systemctl stop "$NAME.service"
    systemctl disable "$NAME.service"
@@ -129,7 +128,7 @@ while [ -z "$disk_label" ] || [[ "$disk_label" =~ $UNSAFE_RGX ]]; do
    read disk_label
 done
 
-while [ "$command" == 'set' ] && [[ ! "$timeout" =~ $NUM_RGX ]]; do
+while [ "$cmd" == 'set' ] && [[ ! "$timeout" =~ $NUM_RGX ]]; do
 
    echo 'Enter sleep timeout, in seconds: '
    read timeout
@@ -138,7 +137,7 @@ done
 # SET DISK ------------------------------------------------------------------------------------------
 
 # set disk
-if [ "$command" == 'set' ]; then
+if [ "$cmd" == 'set' ]; then
 
    # update config (read params, set, write)
    while read line; do
@@ -164,7 +163,9 @@ if [ "$command" == 'set' ]; then
 
    cat /dev/null > "$CONFIG_FILE"
    cat /dev/null > "$TMP_FILE"
+
    for key in "${!config[@]}"; do
+
       echo "<$key><${config[$key]}>" >> "$TMP_FILE"
    done
 
@@ -189,12 +190,12 @@ if [ "$command" == 'set' ]; then
    systemctl start "$NAME.service"
    systemctl daemon-reload
 
-   echo "$command $disk_label, will sleep after $timeout seconds"
+   echo "$cmd $disk_label, will sleep after $timeout seconds"
 fi
 
 # UNSET DISK ----------------------------------------------------------------------------------------
 
-if [ "$command" == 'unset' ]; then
+if [ "$cmd" == 'unset' ]; then
 
    sed "/$disk_label/d" "$CONFIG_FILE" > "$TMP_FILE"
    mv "$TMP_FILE" "$CONFIG_FILE"
@@ -203,5 +204,5 @@ if [ "$command" == 'unset' ]; then
    systemctl start "$NAME.service"
    systemctl daemon-reload
 
-   echo "$command $disk_label"
+   echo "$cmd $disk_label"
 fi
