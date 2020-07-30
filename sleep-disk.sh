@@ -31,13 +31,13 @@ function clean_exit {
 
 if [ ! -x "$(command -v hdparm)" ]; then
 
-   echo 'hdparm not found, please install hdparm'
+   echo '"hdparm" not found, please install "hdparm"'
    exit
 fi
 
 if [ ! -x "$(command -v fswatch)" ]; then
 
-   echo 'fswatch not found, please install fswatch'
+   echo '"fswatch" not found, please install "fswatch"'
    exit
 fi
 
