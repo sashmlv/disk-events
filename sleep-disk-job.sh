@@ -5,17 +5,8 @@ declare -A devs
 declare -A sleep_pids
 declare -A sleep_seconds
 declare -A timeouts
-cmd=$1
-data=$2
-key=
-value=
-mount=
-mounts=()
-disk_labels=()
-current_disk=
-last_disk=
-data_lines=
 NAME='sleep-disk'
+DEFAULT_TIMEOUT=180
 BATCH_MARKER='------------'
 CONFIG_RGX='^<.+><[0-9]+>$' # match config line
 CONFIG_FILE="/home/$USER/bin/$NAME.conf"
@@ -26,6 +17,17 @@ SED_CUT_DEV='s/^PKNAME="\|"\sLABEL.\+//g' # cut dev
 SED_CUT_MOUNT='s/.\+MOUNTPOINT="\|\"$//g' # cut mount
 JOB_FIFO_PATH="/tmp/$NAME.job.tmp"
 RESET_FIFO_PATH="/tmp/$NAME.seconds.tmp"
+cmd=$1
+data=$2
+key=
+value=
+mount=
+mounts=()
+disk_labels=()
+current_disk=
+last_disk=
+data_lines=
+str=
 
 # CHECK SCRIPT INSTANCE -----------------------------------------------------------------------------
 
@@ -39,9 +41,17 @@ if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
 
    echo 'restart' > $JOB_FIFO
 
-   while read -t 0.01 line <& 3; do
+   # remember previous timers state
+   while read -t 0.01 line <& 3; do str="$line"; done
 
-      echo "---> $line"
+   readarray -t data_lines <<< $(echo "$str" | sed 's/<>/\n/g');
+
+   for line in "${data_lines[@]}"; do
+
+      key=$(echo "$line" | sed "$SED_CUT_KEY")
+      val=$(echo "$line" | sed "$SED_CUT_VAL")
+
+      sleep_seconds["$key"]="$val"
    done
 
    PREVIOUS_PID=$(cat 2>/dev/null "$PID_FILE")
@@ -58,21 +68,6 @@ mkfifo -m 600 "$RESET_FIFO"
 
 echo "$$" > "$PID_FILE"
 echo "$$"
-
-# INITIAL DATA --------------------------------------------------------------------------------------
-
-# if [ "$cmd" == 'data' ]; then
-
-#    readarray -t data_lines <<< $(echo "$data" | sed 's/<>/\n/g');
-
-#    for line in "${data_lines[@]}"; do
-
-#       key=$(echo "$line" | sed "$SED_CUT_KEY")
-#       val=$(echo "$line" | sed "$SED_CUT_VAL")
-
-#       timeouts[$key]=$val
-#    done
-# fi
 
 # CONFIG --------------------------------------------------------------------------------------------
 
@@ -128,6 +123,25 @@ done <<< $(lsblk -Ppo pkname,label,mountpoint)
 
 # JOB -----------------------------------------------------------------------------------------------
 
+function just_do_sleep {
+
+   i="${2:-$DEFAULT_TIMEOUT}"
+   while [[ "$i" -gt 0 ]]; do
+
+      echo "<$1><$i>" > $JOB_FIFO
+      sleep 1
+      ((i--))
+   done
+
+   echo "move $1 into sleep mode"
+}
+
+# keep previous process if has data
+for disk_label in "${!sleep_seconds[@]}"; do
+
+   just_do_sleep "$disk_label" "${sleep_seconds[$disk_label]}" &
+done
+
 # watch disk access events
 while read access_path; do
 
@@ -145,17 +159,6 @@ while read access_path; do
    fi
 done < <(fswatch --batch-marker="$BATCH_MARKER" "${mounts[@]}") &
 
-function just_do_sleep {
-
-   for i in {60..1}; do
-
-      echo "<$1><$i>" > $JOB_FIFO
-      sleep 1
-   done
-
-   echo "move $1 into sleep mode"
-}
-
 # read and handle access events data
 while read line < $JOB_FIFO; do
 
@@ -172,13 +175,16 @@ while read line < $JOB_FIFO; do
 
       for disk_label in "${!sleep_seconds[@]}"; do
 
-         echo "<$disk_label><${sleep_seconds[$disk_label]}>" > $RESET_FIFO
+         str+="<$disk_label><${sleep_seconds[$disk_label]}><>"
       done
+
+      echo "$str" > $RESET_FIFO
+
    else
 
       # remember current timers state
       key=$(echo "$line" | sed "$SED_CUT_KEY")
       val=$(echo "$line" | sed "$SED_CUT_VAL")
-      sleep_seconds[$key]=$val
+      sleep_seconds["$key"]="$val"
    fi
 done
