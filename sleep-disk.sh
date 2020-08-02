@@ -31,7 +31,7 @@ function clean_exit {
 
 if [ ! -x "$(command -v hdparm)" ]; then
 
-   echo '"hdparm" not found, please install "hdparm"'
+   echo '"sdparm" not found, please install "sdparm"'
    exit
 fi
 

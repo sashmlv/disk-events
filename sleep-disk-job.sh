@@ -24,10 +24,10 @@ value=
 mount=
 mounts=()
 disk_labels=()
+data_lines=()
 current_disk=
 last_disk=
-data_lines=
-str=
+tmpstr=
 
 # CHECK SCRIPT INSTANCE -----------------------------------------------------------------------------
 
@@ -39,12 +39,13 @@ if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
 
    exec 3<>$RESET_FIFO
 
-   echo 'restart' > $JOB_FIFO
+   echo 'restart' > $JOB_FIFO &
 
    # remember previous timers state
-   while read -t 0.01 line <& 3; do str="$line"; done
+   while read -t 0.01 line <& 3; do tmpstr="$line"; done
 
-   readarray -t data_lines <<< $(echo "$str" | sed 's/<>/\n/g');
+   IFS=$'\n';
+   data_lines=($(echo "$tmpstr" | sed 's/<>/\n/g'))
 
    for line in "${data_lines[@]}"; do
 
@@ -56,6 +57,7 @@ if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
 
    PREVIOUS_PID=$(cat 2>/dev/null "$PID_FILE")
    kill -- -"$PREVIOUS_PID"
+   tmpstr=''
 fi
 
 rm -f $JOB_FIFO_PATH
@@ -65,9 +67,6 @@ mkfifo -m 600 "$JOB_FIFO"
 rm -f $RESET_FIFO_PATH
 RESET_FIFO=$RESET_FIFO_PATH
 mkfifo -m 600 "$RESET_FIFO"
-
-echo "$$" > "$PID_FILE"
-echo "$$"
 
 # CONFIG --------------------------------------------------------------------------------------------
 
@@ -110,7 +109,10 @@ while read line; do
 
    for disk_label in "${!config[@]}"; do
 
-      disk_labels+=("$disk_label")
+      if [[ ! " ${disk_labels[@]} " =~ " ${disk_label} " ]]; then
+
+         disk_labels+=("$disk_label")
+      fi
 
       if [[ "$line" =~ "$disk_label" ]]; then
 
@@ -119,21 +121,23 @@ while read line; do
          mounts+=("$mount")
       fi
    done
-done <<< $(lsblk -Ppo pkname,label,mountpoint)
+done < <(lsblk -Ppo pkname,label,mountpoint)
 
-# JOB -----------------------------------------------------------------------------------------------
+# START PREVIOUS JOB IF EXISTS ----------------------------------------------------------------------
 
 function just_do_sleep {
 
-   i="${2:-$DEFAULT_TIMEOUT}"
-   while [[ "$i" -gt 0 ]]; do
+   for i in $(seq "${2:-$DEFAULT_TIMEOUT}" -1 1); do
 
-      echo "<$1><$i>" > $JOB_FIFO
       sleep 1
-      ((i--))
+      echo "<$1><$i>" > $JOB_FIFO &
    done
 
-   echo "move $1 into sleep mode"
+   if [ ! -z "${devs[$1]}" ]; then
+
+      echo "move $1 ${devs[$1]} into sleep mode"
+      sdparm --readonly --command=stop "${devs[$1]}"
+   fi
 }
 
 # keep previous process if has data
@@ -141,6 +145,11 @@ for disk_label in "${!sleep_seconds[@]}"; do
 
    just_do_sleep "$disk_label" "${sleep_seconds[$disk_label]}" &
 done
+
+echo "$$" > "$PID_FILE"
+echo "$$"
+
+# JOB -----------------------------------------------------------------------------------------------
 
 # watch disk access events
 while read access_path; do
@@ -155,7 +164,7 @@ while read access_path; do
 
    if [ "$access_path" == "$BATCH_MARKER" ]; then
 
-      echo "$current_disk" > $JOB_FIFO
+      echo "$current_disk" > $JOB_FIFO &
    fi
 done < <(fswatch --batch-marker="$BATCH_MARKER" "${mounts[@]}") &
 
@@ -168,18 +177,18 @@ while read line < $JOB_FIFO; do
 
       last_disk=$line
       kill "${sleep_pids[$last_disk]}" 2>/dev/null;
-      just_do_sleep "$last_disk" &
+      just_do_sleep "$last_disk" "${config[$last_disk]}" &
       sleep_pids[$last_disk]=$!
 
    elif [ "$line" == 'restart' ]; then
 
       for disk_label in "${!sleep_seconds[@]}"; do
 
-         str+="<$disk_label><${sleep_seconds[$disk_label]}><>"
+         tmpstr+="<$disk_label><${sleep_seconds[$disk_label]}><>"
       done
 
-      echo "$str" > $RESET_FIFO
-
+      echo "$tmpstr" > $RESET_FIFO &
+      tmpstr=''
    else
 
       # remember current timers state
