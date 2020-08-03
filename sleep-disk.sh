@@ -338,8 +338,6 @@ if [ "$cli_cmd" == 'unset' ]; then
    sed "/$cli_label/d" "$CONFIG_FILE" > "$TMP_FILE"
    mv "$TMP_FILE" "$CONFIG_FILE"
 
-   systemctl enable "$NAME.service"
-   systemctl start "$NAME.service"
    systemctl daemon-reload
 
    echo "$cli_cmd $cli_label"
