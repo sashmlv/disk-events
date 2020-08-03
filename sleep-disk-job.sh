@@ -23,7 +23,7 @@ key=
 value=
 mount=
 mounts=()
-disk_labels=()
+labels=()
 data_lines=()
 current_disk=
 last_disk=
@@ -107,16 +107,16 @@ fi
 
 while read line; do
 
-   for disk_label in "${!config[@]}"; do
+   for label in "${!config[@]}"; do
 
-      if [[ ! " ${disk_labels[@]} " =~ " ${disk_label} " ]]; then
+      if [[ ! " ${labels[@]} " =~ " ${label} " ]]; then
 
-         disk_labels+=("$disk_label")
+         labels+=("$label")
       fi
 
-      if [[ "$line" =~ "$disk_label" ]]; then
+      if [[ "$line" =~ "$label" ]]; then
 
-         devs["$disk_label"]=$(echo "$line" | sed "$SED_CUT_DEV")
+         devs["$label"]=$(echo "$line" | sed "$SED_CUT_DEV")
          mount=$(echo "$line" | sed "$SED_CUT_MOUNT")
          mounts+=("$mount")
       fi
@@ -141,9 +141,9 @@ function just_do_sleep {
 }
 
 # keep previous process if has data
-for disk_label in "${!sleep_seconds[@]}"; do
+for label in "${!sleep_seconds[@]}"; do
 
-   just_do_sleep "$disk_label" "${sleep_seconds[$disk_label]}" &
+   just_do_sleep "$label" "${sleep_seconds[$label]}" &
 done
 
 echo "$$" > "$PID_FILE"
@@ -154,11 +154,11 @@ echo "$$"
 # watch disk access events
 while read access_path; do
 
-   for disk_label in "${!config[@]}"; do
+   for label in "${!config[@]}"; do
 
-      if [[ "$access_path" =~ "$disk_label" ]]; then
+      if [[ "$access_path" =~ "$label" ]]; then
 
-         current_disk="$disk_label"
+         current_disk="$label"
       fi
    done
 
@@ -173,7 +173,7 @@ while read line < $JOB_FIFO; do
 
    echo "$line"
 
-   if [[ " ${disk_labels[@]} " =~ " ${line} " ]]; then
+   if [[ " ${labels[@]} " =~ " ${line} " ]]; then
 
       last_disk=$line
       kill "${sleep_pids[$last_disk]}" 2>/dev/null;
@@ -182,9 +182,9 @@ while read line < $JOB_FIFO; do
 
    elif [ "$line" == 'restart' ]; then
 
-      for disk_label in "${!sleep_seconds[@]}"; do
+      for label in "${!sleep_seconds[@]}"; do
 
-         tmpstr+="<$disk_label><${sleep_seconds[$disk_label]}><>"
+         tmpstr+="<$label><${sleep_seconds[$label]}><>"
       done
 
       echo "$tmpstr" > $RESET_FIFO &
