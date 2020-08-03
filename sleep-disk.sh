@@ -70,7 +70,7 @@ function read_config {
 
 # CHECK UTILS ---------------------------------------------------------------------------------------
 
-if [ ! -x "$(command -v hdparm)" ]; then
+if [ ! -x "$(command -v sdparm)" ]; then
 
    echo '"sdparm" not found, please install "sdparm"'
    exit
@@ -146,6 +146,12 @@ if [ "$cli_cmd" == 'quit' ]; then echo "$cli_cmd"; exit; fi
 if [ "$cli_cmd" == 'print' ]; then
 
    read_config
+
+   if [[ "${#labels[@]}" -eq 0 ]]; then
+
+      printf 'There are no config data'
+      exit
+   fi
 
    for label in "${labels[@]}"; do
 
@@ -263,38 +269,50 @@ while [ "$cli_cmd" == 'set' ] && [[ ! "$cli_timeout" =~ $NUM_RGX ]]; do
    read cli_timeout
 done
 
-while [ "$cli_cmd" == 'set' ] && [ -z "$sleep_command" ]; do
+if [ "$cli_cmd" == 'set' ] && [ -z "$cli_sleep_cmd" ]; then
 
-   echo 'Default sleep command: sdparm --readonly --command=stop $dev\n$dev - device path (/dev/sdx)\nCommand will executed like this: your-command-here $dev & \nEnter sleep command or skip for default: '
-   read sleep_command
-done
+   printf "Default sleep command: sdparm --readonly --command=stop \$dev\nParameter \$dev the device path (/dev/sdx)\nEnter sleep command or skip for default: "
+   read cli_sleep_cmd
+
+   if [ -z "$cli_sleep_cmd" ]; then
+
+      cli_sleep_cmd='sdparm --readonly --command=stop $dev'
+   fi
+fi
 
 # SET DISK ------------------------------------------------------------------------------------------
 
 # set disk
 if [ "$cli_cmd" == 'set' ]; then
 
-   # update config
-   config["$cli_label"]="$cli_timeout"
-
-   cat /dev/null > "$CONFIG_FILE"
-   cat /dev/null > "$TMP_FILE"
-
-   for label in "${!config[@]}"; do
-
-      echo "<$label><${config[$label]}>" >> "$TMP_FILE"
-   done
-
-   sed '/^$/d' "$TMP_FILE" > "$CONFIG_FILE" # remove empty lines
+   read_config
 
    # get mount point
    mount_point=$(systemctl list-units -t mount | sed "s/\s\+/|/g" | awk -F '|' '/\.mount/{ print $2 }' | xargs -0 printf %b | grep "$cli_label")
 
    if [ -z "$mount_point" ]; then
 
-      echo "Can't find mount point, try mount disk"
+      echo "Can't find mount point, try mount disk before"
       clean_exit
    fi
+
+   cat /dev/null > "$CONFIG_FILE"
+   cat /dev/null > "$TMP_FILE"
+
+   if [[ ! " ${labels[@]} " =~ " ${cli_label} " ]]; then
+
+      labels+=("$cli_label")
+   fi
+
+   timeouts["$cli_label"]="$cli_timeout"
+   cmds["$cli_label"]="$cli_sleep_cmd"
+
+   for label in "${labels[@]}"; do
+
+      echo "<$label><${timeouts[$label]}><${cmds[$label]}>" >> "$TMP_FILE"
+   done
+
+   sed '/^$/d' "$TMP_FILE" > "$CONFIG_FILE" # remove empty lines
 
    # add service lines and restart service
    after="After=$mount_point"
@@ -306,7 +324,11 @@ if [ "$cli_cmd" == 'set' ]; then
    systemctl start "$NAME.service"
    systemctl daemon-reload
 
-   echo "$cli_cmd $cli_label, will sleep after $cli_timeout seconds"
+   echo
+   echo 'Added:'
+   echo "disk label: $cli_label"
+   echo "sleep timeout: $cli_timeout"
+   echo "sleep command: $cli_sleep_cmd"
 fi
 
 # UNSET DISK ----------------------------------------------------------------------------------------

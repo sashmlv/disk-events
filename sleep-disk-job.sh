@@ -1,10 +1,5 @@
 #!/bin/bash
 
-declare -A config
-declare -A devs
-declare -A sleep_pids
-declare -A sleep_seconds
-declare -A timeouts
 NAME='sleep-disk'
 DEFAULT_TIMEOUT=180
 BATCH_MARKER='------------'
@@ -17,8 +12,13 @@ SED_CUT_DEV='s/^PKNAME="\|"\sLABEL.\+//g' # cut dev
 SED_CUT_MOUNT='s/.\+MOUNTPOINT="\|\"$//g' # cut mount
 JOB_FIFO_PATH="/tmp/$NAME.job.tmp"
 RESET_FIFO_PATH="/tmp/$NAME.seconds.tmp"
-cmd=$1
-data=$2
+
+declare -A config
+declare -A devs
+declare -A sleep_pids
+declare -A sleep_seconds
+declare -A timeouts
+
 key=
 value=
 mount=
