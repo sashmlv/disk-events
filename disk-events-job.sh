@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAME='sleep-disk'
+NAME='disk-events'
 DEFAULT_TIMEOUT=180
 BATCH_MARKER='------------'
 CONFIG_RGX='^<.+><[0-9]+>$' # match config line
@@ -15,8 +15,8 @@ RESET_FIFO_PATH="/tmp/$NAME.seconds.tmp"
 
 declare -A config
 declare -A devs
-declare -A sleep_pids
-declare -A sleep_seconds
+declare -A job_pids
+declare -A job_seconds
 declare -A timeouts
 
 key=
@@ -52,7 +52,7 @@ if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
       key=$(echo "$line" | sed "$SED_CUT_KEY")
       val=$(echo "$line" | sed "$SED_CUT_VAL")
 
-      sleep_seconds["$key"]="$val"
+      job_seconds["$key"]="$val"
    done
 
    PREVIOUS_PID=$(cat 2>/dev/null "$PID_FILE")
@@ -125,7 +125,7 @@ done < <(lsblk -Ppo pkname,label,mountpoint)
 
 # START PREVIOUS JOB IF EXISTS ----------------------------------------------------------------------
 
-function just_do_sleep {
+function job {
 
    for i in $(seq "${2:-$DEFAULT_TIMEOUT}" -1 1); do
 
@@ -141,9 +141,9 @@ function just_do_sleep {
 }
 
 # keep previous process if has data
-for label in "${!sleep_seconds[@]}"; do
+for label in "${!job_seconds[@]}"; do
 
-   just_do_sleep "$label" "${sleep_seconds[$label]}" &
+   job "$label" "${job_seconds[$label]}" &
 done
 
 echo "$$" > "$PID_FILE"
@@ -176,15 +176,15 @@ while read line < $JOB_FIFO; do
    if [[ " ${labels[@]} " =~ " ${line} " ]]; then
 
       last_disk=$line
-      kill "${sleep_pids[$last_disk]}" 2>/dev/null;
-      just_do_sleep "$last_disk" "${config[$last_disk]}" &
-      sleep_pids[$last_disk]=$!
+      kill "${job_pids[$last_disk]}" 2>/dev/null;
+      job "$last_disk" "${config[$last_disk]}" &
+      job_pids[$last_disk]=$!
 
    elif [ "$line" == 'restart' ]; then
 
-      for label in "${!sleep_seconds[@]}"; do
+      for label in "${!job_seconds[@]}"; do
 
-         tmpstr+="<$label><${sleep_seconds[$label]}><>"
+         tmpstr+="<$label><${job_seconds[$label]}><>"
       done
 
       echo "$tmpstr" > $RESET_FIFO &
@@ -194,6 +194,6 @@ while read line < $JOB_FIFO; do
       # remember current timers state
       key=$(echo "$line" | sed "$SED_CUT_KEY")
       val=$(echo "$line" | sed "$SED_CUT_VAL")
-      sleep_seconds["$key"]="$val"
+      job_seconds["$key"]="$val"
    fi
 done

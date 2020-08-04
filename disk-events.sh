@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAME='sleep-disk'
+NAME='disk-events'
 COMMANDS=('set' 'unset' 'print' 'uninstall' 'quit')
 SOURCE_JOB_FILE="./$NAME-job.sh"
 TARGET_JOB_FILE="/home/$USER/bin/$NAME-job.sh"
@@ -14,12 +14,12 @@ LABEL_RGX='^After=.+\.mount$' # contains disk label
 SED_CUT_LABEL='s/\(After=.\+\-\|\.mount\)//g' # cut disk label
 AWK_CUT_CONFIG_LABEL='{ sub(/^</, "") }; { sub(/><[0-9]+><.+$/, "") }1' # cut disk label
 AWK_CUT_CONFIG_TIMEOUT='{ sub(/^<[^>]*></, "") }; { sub(/><[^>]*>$/, "") }1' # cut disk timeout
-AWK_CUT_CONFIG_COMMAND='{ sub(/^.+</, "") }; { sub(/>$/, "") }1' # cut sleep command
+AWK_CUT_CONFIG_COMMAND='{ sub(/^.+</, "") }; { sub(/>$/, "") }1' # cut job command
 
 cli_cmd=$1
 cli_label=$2
 cli_timeout=$3
-cli_sleep_cmd=$4
+cli_job_cmd=$4
 
 labels=()
 declare -A timeouts
@@ -28,7 +28,7 @@ declare -A cmds
 cmd=
 label=
 timeout=
-sleep_cmd=
+job_cmd=
 
 label_title=' label '
 timeout_title=' timeout '
@@ -265,18 +265,18 @@ done
 
 while [ "$cli_cmd" == 'set' ] && [[ ! "$cli_timeout" =~ $NUM_RGX ]]; do
 
-   echo 'Enter sleep timeout, in seconds: '
+   echo 'Enter job timeout, in seconds: '
    read cli_timeout
 done
 
-if [ "$cli_cmd" == 'set' ] && [ -z "$cli_sleep_cmd" ]; then
+if [ "$cli_cmd" == 'set' ] && [ -z "$cli_job_cmd" ]; then
 
-   printf "Default sleep command: sdparm --readonly --command=stop \$dev\nParameter \$dev the device path (/dev/sdx)\nEnter sleep command or skip for default: "
-   read cli_sleep_cmd
+   printf "Default job command: sdparm --readonly --command=stop \$dev\nParameter \$dev the device path (/dev/sdx)\nEnter job command or skip for default: "
+   read cli_job_cmd
 
-   if [ -z "$cli_sleep_cmd" ]; then
+   if [ -z "$cli_job_cmd" ]; then
 
-      cli_sleep_cmd='sdparm --readonly --command=stop $dev'
+      cli_job_cmd='sdparm --readonly --command=stop $dev'
    fi
 fi
 
@@ -305,7 +305,7 @@ if [ "$cli_cmd" == 'set' ]; then
    fi
 
    timeouts["$cli_label"]="$cli_timeout"
-   cmds["$cli_label"]="$cli_sleep_cmd"
+   cmds["$cli_label"]="$cli_job_cmd"
 
    for label in "${labels[@]}"; do
 
@@ -327,8 +327,8 @@ if [ "$cli_cmd" == 'set' ]; then
    echo
    echo 'Added:'
    echo "disk label: $cli_label"
-   echo "sleep timeout: $cli_timeout"
-   echo "sleep command: $cli_sleep_cmd"
+   echo "job timeout: $cli_timeout"
+   echo "job command: $cli_job_cmd"
 fi
 
 # UNSET DISK ----------------------------------------------------------------------------------------
