@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# CLI FORMAT: sudo ./disk-events.sh set --label=<disk label> --path=<path> --timeout=<timeout> --command=<command> --fswatch=<fswatch options>
+
 NAME='disk-events'
 COMMANDS=('set' 'unset' 'print' 'uninstall' 'quit')
 SOURCE_JOB_FILE="./$NAME-job.sh"
@@ -9,26 +11,40 @@ SERVICE_FILE="/etc/systemd/system/$NAME.service"
 TMP_FILE='/tmp/$NAME.tmp'
 NUM_RGX='^[0-9]+$' # it's number
 UNSAFE_RGX="[\0\`\\\/:\;\*\"\'\<\>\|\.\,]" # UNSAFE SYMBOLS: \0 ` \ / : ; * " ' < > | . ,
-CONFIG_RGX='^<.+><[0-9]+><.+>$' # match config line
+CONFIG_RGX='^<.+><.*><[0-9]+><.+><.*>$' # match config line
 LABEL_RGX='^After=.+\.mount$' # contains disk label
+PATH_RGX='^/|(/[a-zA-Z0-9_-]+)+$' # check watching path
 SED_CUT_LABEL='s/\(After=.\+\-\|\.mount\)//g' # cut disk label
-AWK_CUT_CONFIG_LABEL='{ sub(/^</, "") }; { sub(/><[0-9]+><.+$/, "") }1' # cut disk label
-AWK_CUT_CONFIG_TIMEOUT='{ sub(/^<[^>]*></, "") }; { sub(/><[^>]*>$/, "") }1' # cut disk timeout
-AWK_CUT_CONFIG_COMMAND='{ sub(/^.+</, "") }; { sub(/>$/, "") }1' # cut job command
+AWK_CUT_CONFIG_LABEL='match($0, /^<[^>]*>/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # disk label
+AWK_CUT_CONFIG_PATH='{ sub(/^<[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # watch path
+AWK_CUT_CONFIG_TIMEOUT='{ sub(/^<[^>]*><[^>]*></, "" )}; match($0, /^[0-9]+[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job timeout
+AWK_CUT_CONFIG_COMMAND='{ sub(/^<[^>]*><[^>]*><[0-9]+></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job command
+AWK_CUT_CONFIG_FSWATCH='match($0, /<[^<]*>$/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # fswatch options
+AWK_CUT_ARG_LABEL='match($0, /(-l\ |-l=|--label\ |--label=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-l\ |-l=|--label\ |--label=)|\ $/, "", str); print str }'
+AWK_CUT_ARG_PATH='match($0, /(-p\ |-p=|--path\ |--path=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-p\ |-p=|--path\ |--path=)|\ $/, "", str); print str }'
+AWK_CUT_ARG_TIMEOUT='match($0, /(-t\ |-t=|--timeout\ |--timeout=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-t\ |-t=|--timeout\ |--timeout=)|\ $/, "", str); print str }'
+AWK_CUT_ARG_COMMAND='match($0, /(-c\ |-c=|--command\ |--command=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-c\ |-c=|--command\ |--command=)|\ $/, "", str); print str }'
+AWK_CUT_ARG_FSWATCH='match($0, /(-f\ |-f=|--fswatch\ |--fswatch=)[\47"].+[\47"]/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-f\ |-f=|--fswatch\ |--fswatch=)[\47|"]|[\47|"]$/, "", str); print str }'
 
 cli_cmd=$1
-cli_label=$2
-cli_timeout=$3
-cli_job_cmd=$4
+cli_label=
+cli_path=
+cli_timeout=
+cli_job_cmd=
+cli_fswatch=
 
 labels=()
+declare -A paths
 declare -A timeouts
 declare -A cmds
+declare -A fswatch_opts
 
 cmd=
 label=
+path=
 timeout=
 job_cmd=
+fswatch=
 
 label_title=' label '
 timeout_title=' timeout '
@@ -36,6 +52,8 @@ cmd_title=' command '
 label_length=0
 timeout_length=0
 cmd_length=0
+
+# FUNCTIONS ----------------------------------------------------------------------------------------
 
 function clean_exit {
 
@@ -45,6 +63,12 @@ function clean_exit {
 
 function read_config {
 
+   if [ ! -f "$CONFIG_FILE" ]; then
+
+      printf 'Config file not found'
+      exit
+   fi
+
    while read line; do
 
       if [ ! -z "$line" ]; then
@@ -52,12 +76,16 @@ function read_config {
          if [[ "$line" =~ $CONFIG_RGX ]]; then
 
             label=$(echo "$line" | awk "$AWK_CUT_CONFIG_LABEL")
+            path=$(echo "$line" | awk "$AWK_CUT_CONFIG_PATH")
             timeout=$(echo "$line" | awk "$AWK_CUT_CONFIG_TIMEOUT")
-            cmd=$(echo "$line" | awk "$AWK_CUT_CONFIG_COMMAND")
+            job_cmd=$(echo "$line" | awk "$AWK_CUT_CONFIG_COMMAND")
+            fswatch=$(echo "$line" | awk "$AWK_CUT_CONFIG_FSWATCH")
 
             labels+=("$label")
+            paths["$label"]="$path"
             timeouts["$label"]="$timeout"
             cmds["$label"]="$cmd"
+            fswatch_opts["$label"]="$fswatch_opts"
          else
 
             echo "Wrong line in the config:"
@@ -68,13 +96,17 @@ function read_config {
    done < "$CONFIG_FILE"
 }
 
+read_config
+
+echo "---"
+echo "label: $label"
+echo "path: $path"
+echo "timeout: $timeout"
+echo "job_cmd: $job_cmd"
+echo "fswatch: $fswatch"
+exit
+
 # CHECK UTILS ---------------------------------------------------------------------------------------
-
-if [ ! -x "$(command -v sdparm)" ]; then
-
-   echo '"sdparm" not found, please install "sdparm"'
-   exit
-fi
 
 if [ ! -x "$(command -v fswatch)" ]; then
 
@@ -82,43 +114,28 @@ if [ ! -x "$(command -v fswatch)" ]; then
    exit
 fi
 
-# INSTALL -------------------------------------------------------------------------------------------
+if [ ! -x "$(command -v sdparm)" ]; then
 
-# add config file
-if [ ! -f "$CONFIG_FILE" ]; then
-
-   touch "$CONFIG_FILE"
+   echo '"sdparm" not found, please install "sdparm"'
+   exit
 fi
 
-# add job file
-if [ ! -f "$TARGET_JOB_FILE" ]; then
+# CLI ARGUMENTS -------------------------------------------------------------------------------------
 
-   cp "$SOURCE_JOB_FILE" "$TARGET_JOB_FILE"
-   chmod +x "$TARGET_JOB_FILE"
-fi
+if [ ! -z "$cli_cmd" ]; then shift; fi
 
-# add service for disk mount/unmount monitoring
-if [ ! -f "$SERVICE_FILE" ]; then
+if [ ! -z "$*" ]; then
 
-   cat > "$SERVICE_FILE" <<EOF
-[Unit]
-
-[Service]
-ExecStart=$TARGET_JOB_FILE
-
-[Install]
-EOF
+   cli_label=$(echo "$*" | awk "$AWK_CUT_ARG_LABEL")
+   cli_path=$(echo "$*" | awk "$AWK_CUT_ARG_PATH")
+   cli_timeout=$(echo "$*" | awk "$AWK_CUT_ARG_TIMEOUT")
+   cli_job_cmd=$(echo "$*" | awk "$AWK_CUT_ARG_COMMAND")
+   cli_fswatch=$(echo "$*" | awk "$AWK_CUT_ARG_FSWATCH")
 fi
 
 # COMMAND -------------------------------------------------------------------------------------------
 
-# reset bad command input
-if [ ! -z "$cli_cmd" ] && [[ ! " ${COMMANDS[@]} " =~ " ${cli_cmd} " ]]; then
-
-   cli_cmd=''
-fi
-
-if [ -z "$cli_cmd" ]; then
+if [ -z "$cli_cmd" ] || [[ ! " ${COMMANDS[@]} " =~ " ${cli_cmd} " ]]; then
 
    echo 'Select command: '
    echo '1. set disk'
@@ -140,6 +157,17 @@ fi
 # QUIT ----------------------------------------------------------------------------------------------
 
 if [ "$cli_cmd" == 'quit' ]; then echo "$cli_cmd"; exit; fi
+
+# UNINSTALL -----------------------------------------------------------------------------------------
+
+if [ "$cli_cmd" == 'uninstall' ]; then
+
+   systemctl stop "$NAME.service"
+   systemctl disable "$NAME.service"
+   systemctl daemon-reload
+   rm -f "$CONFIG_FILE" "$TARGET_JOB_FILE" "$SERVICE_FILE" "$TMP_FILE"
+   exit
+fi
 
 # PRINT CONFIG --------------------------------------------------------------------------------------
 
@@ -233,24 +261,7 @@ if [ "$cli_cmd" == 'print' ]; then
    exit
 fi
 
-# UNINSTALL -----------------------------------------------------------------------------------------
-
-if [ "$cli_cmd" == 'uninstall' ]; then
-
-   systemctl stop "$NAME.service"
-   systemctl disable "$NAME.service"
-   systemctl daemon-reload
-   rm -f "$CONFIG_FILE" "$TARGET_JOB_FILE" "$SERVICE_FILE" "$TMP_FILE"
-   exit
-fi
-
 # CHECKS --------------------------------------------------------------------------------------------
-
-# reset bad timeout input
-if [[ ! "$cli_timeout" =~ $NUM_RGX ]]; then
-
-   cli_timeout=''
-fi
 
 while [ -z "$cli_label" ] || [[ "$cli_label" =~ $UNSAFE_RGX ]]; do
 
@@ -258,14 +269,38 @@ while [ -z "$cli_label" ] || [[ "$cli_label" =~ $UNSAFE_RGX ]]; do
 
       echo 'Disk label contains not a safe symbols'
    fi
-
    echo 'Enter disk label: '
    read cli_label
 done
 
+# get mount point
+mount_point=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -d '\n' printf "%b\n" | grep "$cli_label")
+
+echo "$mount_point"
+if [ -z "$mount_point" ]; then
+
+   printf "Can't find mount point, try mount disk before: %s\n" "$cli_label"
+   clean_exit
+fi
+
+exit
+
+PATH_RGX='^/|(/[a-zA-Z0-9_-]+)+$' # check watching path
+while [ ! -z "$cli_path" ]; do
+
+   if [[ "$cli_path" =~ $PATH_RGX ]]; then
+
+      break
+   fi
+
+   printf 'Path have wrong format or contains unsafe symbols: %s\n' "$cli_path"
+   echo 'Enter path: '
+   read cli_path
+done
+
 while [ "$cli_cmd" == 'set' ] && [[ ! "$cli_timeout" =~ $NUM_RGX ]]; do
 
-   echo 'Enter job timeout, in seconds: '
+   echo 'Enter job timeout in seconds: '
    read cli_timeout
 done
 
@@ -280,21 +315,46 @@ if [ "$cli_cmd" == 'set' ] && [ -z "$cli_job_cmd" ]; then
    fi
 fi
 
+if [ "$cli_cmd" == 'set' ] && [[ -z "$cli_fswatch" ]]; then
+
+   printf 'Enter fswatch options or skip:'
+   read cli_job_cmd
+fi
+
+# INSTALL -------------------------------------------------------------------------------------------
+
+# add config file
+if [ ! -f "$CONFIG_FILE" ]; then
+
+   touch "$CONFIG_FILE"
+fi
+
+# add job file
+if [ ! -f "$TARGET_JOB_FILE" ]; then
+
+   cp "$SOURCE_JOB_FILE" "$TARGET_JOB_FILE"
+   chmod +x "$TARGET_JOB_FILE"
+fi
+
+# add service for disk mount/unmount monitoring
+if [ ! -f "$SERVICE_FILE" ]; then
+
+   cat > "$SERVICE_FILE" <<EOF
+[Unit]
+
+[Service]
+ExecStart=$TARGET_JOB_FILE
+
+[Install]
+EOF
+fi
+
 # SET DISK ------------------------------------------------------------------------------------------
 
 # set disk
 if [ "$cli_cmd" == 'set' ]; then
-
+exit
    read_config
-
-   # get mount point
-   mount_point=$(systemctl list-units -t mount | sed "s/\s\+/|/g" | awk -F '|' '/\.mount/{ print $2 }' | xargs -0 printf %b | grep "$cli_label")
-
-   if [ -z "$mount_point" ]; then
-
-      echo "Can't find mount point, try mount disk before"
-      clean_exit
-   fi
 
    cat /dev/null > "$CONFIG_FILE"
    cat /dev/null > "$TMP_FILE"
@@ -334,7 +394,7 @@ fi
 # UNSET DISK ----------------------------------------------------------------------------------------
 
 if [ "$cli_cmd" == 'unset' ]; then
-
+exit
    sed "/$cli_label/d" "$CONFIG_FILE" > "$TMP_FILE"
    mv "$TMP_FILE" "$CONFIG_FILE"
 

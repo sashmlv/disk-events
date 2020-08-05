@@ -3,7 +3,7 @@
 NAME='disk-events'
 DEFAULT_TIMEOUT=180
 BATCH_MARKER='------------'
-CONFIG_RGX='^<.+><[0-9]+>$' # match config line
+CONFIG_RGX='^<.+><[0-9]+><.+>$' # match config line
 CONFIG_FILE="/home/$USER/bin/$NAME.conf"
 PID_FILE="/tmp/$NAME.pid"
 SED_CUT_KEY='s/^\(<\)\|\(><.\+>\)$//g' # cut key from config line
@@ -90,7 +90,7 @@ while read line; do
          config["$key"]="$val"
       else
 
-         echo "Wrong line in the config:"
+         echo "Wrong line in the config file:"
          echo "$line"
          exit
       fi
@@ -154,6 +154,8 @@ echo "$$"
 # watch disk access events
 while read access_path; do
 
+   echo "$access_path"
+
    for label in "${!config[@]}"; do
 
       if [[ "$access_path" =~ "$label" ]]; then
@@ -166,7 +168,7 @@ while read access_path; do
 
       echo "$current_disk" > $JOB_FIFO &
    fi
-done < <(fswatch --batch-marker="$BATCH_MARKER" "${mounts[@]}") &
+done < <(fswatch --format="<%p><%f>" --event-flag-separator="," --batch-marker="$BATCH_MARKER" "${mounts[@]}") &
 
 # read and handle access events data
 while read line < $JOB_FIFO; do
