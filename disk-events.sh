@@ -10,11 +10,10 @@ CONFIG_FILE="/home/$USER/bin/$NAME.conf"
 SERVICE_FILE="/etc/systemd/system/$NAME.service"
 TMP_FILE='/tmp/$NAME.tmp'
 NUM_RGX='^[0-9]+$' # it's number
-UNSAFE_RGX="[\0\`\\\/:\;\*\"\'\<\>\|\.\,]" # UNSAFE SYMBOLS: \0 ` \ / : ; * " ' < > | . ,
 CONFIG_RGX='^<.+><.*><[0-9]+><.+><.*>$' # match config line
 LABEL_RGX='^After=.+\.mount$' # contains disk label
-PATH_RGX='^/|(/[a-zA-Z0-9_-]+)+$' # check watching path
 SED_CUT_LABEL='s/\(After=.\+\-\|\.mount\)//g' # cut disk label
+SED_CUT_MOUNT='s/.\+MOUNTPOINT="\|\"$//g' # cut mount
 AWK_CUT_CONFIG_LABEL='match($0, /^<[^>]*>/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # disk label
 AWK_CUT_CONFIG_PATH='{ sub(/^<[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # watch path
 AWK_CUT_CONFIG_TIMEOUT='{ sub(/^<[^>]*><[^>]*></, "" )}; match($0, /^[0-9]+[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job timeout
@@ -95,16 +94,6 @@ function read_config {
       fi
    done < "$CONFIG_FILE"
 }
-
-read_config
-
-echo "---"
-echo "label: $label"
-echo "path: $path"
-echo "timeout: $timeout"
-echo "job_cmd: $job_cmd"
-echo "fswatch: $fswatch"
-exit
 
 # CHECK UTILS ---------------------------------------------------------------------------------------
 
@@ -263,38 +252,72 @@ fi
 
 # CHECKS --------------------------------------------------------------------------------------------
 
-while [ -z "$cli_label" ] || [[ "$cli_label" =~ $UNSAFE_RGX ]]; do
+UNSAFE_RGX="[\0\`\\\/:\;\*\"\'\<\>\|\.\,]" # UNSAFE SYMBOLS: \0 ` \ / : ; * " ' < > | . ,
+cli_label_ok=
+mount_point=
+mount_unit=
 
-   if [[ "$cli_label" =~ $UNSAFE_RGX ]]; then
+while [ -z "$cli_label_ok" ] || [ "$cli_label_ok" == 'no' ]; do
+
+   cli_label_ok='yes'
+
+   if [ "$cli_label_ok" == 'yes' ] && [[ "$cli_label" =~ $UNSAFE_RGX ]]; then
 
       echo 'Disk label contains not a safe symbols'
+      cli_label_ok='no'
    fi
-   echo 'Enter disk label: '
-   read cli_label
+
+   if [ "$cli_label_ok" == 'yes' ]; then
+
+      # find mount point
+      while read line; do
+
+         if [[ "$line" =~ "$cli_label" ]]; then
+
+            mount_point=$(echo "$line" | sed "$SED_CUT_MOUNT")
+         fi
+      done < <(lsblk -Ppo pkname,label,mountpoint)
+
+      if [ -z "$mount_point" ]; then
+
+         printf "Can't find mount point, try mount disk before: %s\n" "$cli_label"
+         cli_label_ok='no'
+      fi
+   fi
+
+   if [ "$cli_label_ok" == 'yes' ]; then
+
+      mount_unit=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -d '\n' printf "%b\n" | grep "$cli_label")
+
+      if [ -z "$mount_unit" ]; then
+
+         printf "Can't find mount unit, for: %s\n" "$cli_label"
+         cli_label_ok='no'
+      fi
+   fi
+
+   if [ "$cli_label_ok" == 'no' ]; then
+
+      echo 'Enter disk label: '
+      read cli_label
+   fi
 done
 
-# get mount point
-mount_point=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -d '\n' printf "%b\n" | grep "$cli_label")
+watch_path=
+cli_path_ok=
 
-echo "$mount_point"
-if [ -z "$mount_point" ]; then
+while [ ! -z "$cli_path" ] && { [ -z "$cli_path_ok" ] || [ "$cli_path_ok" == 'no' ]; }; do
 
-   printf "Can't find mount point, try mount disk before: %s\n" "$cli_label"
-   clean_exit
-fi
+   cli_path=$(echo "$cli_path" | sed 's/^\(\.\/\|\/\)//')
+   watch_path="$mount_point/$cli_path"
 
-exit
-
-PATH_RGX='^/|(/[a-zA-Z0-9_-]+)+$' # check watching path
-while [ ! -z "$cli_path" ]; do
-
-   if [[ "$cli_path" =~ $PATH_RGX ]]; then
+   if [ -f "$watch_path" ] || [ -d "$watch_path" ]; then
 
       break
    fi
 
-   printf 'Path have wrong format or contains unsafe symbols: %s\n' "$cli_path"
-   echo 'Enter path: '
+   printf 'Path not found: %s\n' "$watch_path"
+   printf 'Enter path: '
    read cli_path
 done
 
@@ -353,7 +376,9 @@ fi
 
 # set disk
 if [ "$cli_cmd" == 'set' ]; then
-exit
+
+   exit
+
    read_config
 
    cat /dev/null > "$CONFIG_FILE"
@@ -375,8 +400,8 @@ exit
    sed '/^$/d' "$TMP_FILE" > "$CONFIG_FILE" # remove empty lines
 
    # add service lines and restart service
-   after="After=$mount_point"
-   wantedBy="WantedBy=$mount_point"
+   after="After=$mount_unit"
+   wantedBy="WantedBy=$mount_unit"
    awk -v after="$after" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print after; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
    mv "$TMP_FILE" "$SERVICE_FILE"
 
@@ -394,7 +419,9 @@ fi
 # UNSET DISK ----------------------------------------------------------------------------------------
 
 if [ "$cli_cmd" == 'unset' ]; then
-exit
+
+   exit
+
    sed "/$cli_label/d" "$CONFIG_FILE" > "$TMP_FILE"
    mv "$TMP_FILE" "$CONFIG_FILE"
 
