@@ -65,7 +65,7 @@ function read_config {
             paths["$id"]="$path"
             timeouts["$id"]="$timeout"
             job_cmds["$id"]="$job_cmd"
-            fswatch_opts["$id"]="$fswatch_opts"
+            fswatch_opts["$id"]="$fswatch_opt"
          else
 
             echo "Wrong line in the config:"
@@ -92,12 +92,6 @@ fi
 
 # CLI ARGUMENTS -------------------------------------------------------------------------------------
 
-AWK_CUT_ARG_LABEL='match($0, /(-l\ |-l=|--label\ |--label=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-l\ |-l=|--label\ |--label=)|\ $/, "", str); print str }'
-AWK_CUT_ARG_PATH='match($0, /(-p\ |-p=|--path\ |--path=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-p\ |-p=|--path\ |--path=)|\ $/, "", str); print str }'
-AWK_CUT_ARG_TIMEOUT='match($0, /(-t\ |-t=|--timeout\ |--timeout=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-t\ |-t=|--timeout\ |--timeout=)|\ $/, "", str); print str }'
-AWK_CUT_ARG_COMMAND='match($0, /(-c\ |-c=|--command\ |--command=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-c\ |-c=|--command\ |--command=)|\ $/, "", str); print str }'
-AWK_CUT_ARG_FSWATCH='match($0, /(-f\ |-f=|--fswatch\ |--fswatch=)[\47"].+[\47"]/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-f\ |-f=|--fswatch\ |--fswatch=)[\47|"]|[\47|"]$/, "", str); print str }'
-
 cli_cmd=$1
 cli_id=
 cli_label=
@@ -109,6 +103,12 @@ cli_fswatch_opt=
 if [ ! -z "$cli_cmd" ]; then shift; fi
 
 if [ ! -z "$*" ]; then
+
+   AWK_CUT_ARG_LABEL='match($0, /(-l\ |-l=|--label\ |--label=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-l\ |-l=|--label\ |--label=)|\ $/, "", str); print str }'
+   AWK_CUT_ARG_PATH='match($0, /(-p\ |-p=|--path\ |--path=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-p\ |-p=|--path\ |--path=)|\ $/, "", str); print str }'
+   AWK_CUT_ARG_TIMEOUT='match($0, /(-t\ |-t=|--timeout\ |--timeout=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-t\ |-t=|--timeout\ |--timeout=)|\ $/, "", str); print str }'
+   AWK_CUT_ARG_COMMAND='match($0, /(-c\ |-c=|--command\ |--command=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-c\ |-c=|--command\ |--command=)|\ $/, "", str); print str }'
+   AWK_CUT_ARG_FSWATCH='match($0, /(-f\ |-f=|--fswatch\ |--fswatch=)[\47"].+[\47"]/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-f\ |-f=|--fswatch\ |--fswatch=)[\47|"]|[\47|"]$/, "", str); print str }'
 
    cli_label=$(echo "$*" | awk "$AWK_CUT_ARG_LABEL")
    cli_path=$(echo "$*" | awk "$AWK_CUT_ARG_PATH")
@@ -157,96 +157,132 @@ fi
 
 # PRINT CONFIG --------------------------------------------------------------------------------------
 
-label_title=' label '
-timeout_title=' timeout '
-cmd_title=' command '
-label_length=0
-timeout_length=0
-cmd_length=0
-
 if [ "$cli_cmd" == 'print' ]; then
 
-   if [[ "${#labels[@]}" -eq 0 ]]; then
+   read_config
 
-      printf 'There are no config data'
-      exit
-   fi
+   id_title=' id '
+   label_title=' label '
+   path_title=' path '
+   timeout_title=' timeout '
+   job_cmd_title=' command '
+   fswatch_opt_title=' fswatch options '
 
-   for label in "${labels[@]}"; do
+   fields=('id' 'label' 'path' 'timeout' 'job_cmd' 'fswatch_opt')
 
-      if [[ "${#label}" -gt "$label_length" ]]; then
+   declare -A values_lengths
 
-         label_length=$(("${#label}"+2))
+   for field in "${fields[@]}"; do
 
-         if [[ "$label_length" -lt "${#label_title}" ]]; then
+      values_lengths["$field"]=0
+   done
 
-            label_length="${#label_title}"
+   value_length=
+   title_length=
+   for id in "${ids[@]}"; do
+
+      for field in "${fields[@]}"; do
+
+         if [ "$field" == 'id' ]; then
+
+            eval value_length="\${#id}"
+         else
+
+            eval value_length="\${#${field}s[$id]}"
          fi
-      fi
 
-      if [[ "${#timeouts[$label]}" -gt "$timeout_length" ]]; then
+         eval title_length="\${#${field}_title}"
 
-         timeout_length=$(("${#timeouts[$label]}"+2))
+         if [[ "$value_length" -gt "${values_lengths[$field]}" ]]; then
 
-         if [[ "$timeout_length" -lt "${#timeout_title}" ]]; then
+            values_lengths["$field"]="$value_length"
 
-            timeout_length="${#timeout_title}"
+            if [[ "${values_lengths[$field]}" -lt "$title_length" ]]; then
+
+               values_lengths["$field"]=$(("$title_length"-2))
+            fi
          fi
-      fi
+      done
+   done
 
-      if [[ "${#job_cmds[$label]}" -gt "$cmd_length" ]]; then
+   # add two whitespaces
+   for field in "${!values_lengths[@]}"; do
 
-         cmd_length=$(("${#job_cmds[$label]}"+2))
-
-         if [[ "$cmd_length" -lt "${#cmd_title}" ]]; then
-
-            cmd_length="${#cmd_title}"
-         fi
-      fi
+      values_lengths["$field"]=$(("${values_lengths[$field]}"+2))
    done
 
    # 1 line
    printf '+'
-   printf '%0.s-' $(seq 1 "$label_length")
+   printf '%0.s-' $(seq 1 "${values_lengths['id']}")
    printf '+'
-   printf '%0.s-' $(seq 1 "$timeout_length")
+   printf '%0.s-' $(seq 1 "${values_lengths['label']}")
    printf '+'
-   printf '%0.s-' $(seq 1 "$cmd_length")
+   printf '%0.s-' $(seq 1 "${values_lengths['path']}")
+   printf '+'
+   printf '%0.s-' $(seq 1 "${values_lengths['timeout']}")
+   printf '+'
+   printf '%0.s-' $(seq 1 "${values_lengths['job_cmd']}")
+   printf '+'
+   printf '%0.s-' $(seq 1 "${values_lengths['fswatch_opt']}")
    printf '+\n'
    # 2 line
+   printf "|\033[1m$id_title\033[0m"
+   printf '%'$(("${values_lengths['id']}"-"${#id_title}"))'s'
    printf "|\033[1m$label_title\033[0m"
-   printf '%'$(("$label_length"-"${#label_title}"))'s'
+   printf '%'$(("${values_lengths['label']}"-"${#label_title}"))'s'
+   printf "|\033[1m$path_title\033[0m"
+   printf '%'$(("${values_lengths['path']}"-"${#path_title}"))'s'
    printf "|\033[1m$timeout_title\033[0m"
-   printf '%'$(("$timeout_length"-"${#timeout_title}"))'s'
-   printf "|\033[1m$cmd_title\033[0m"
-   printf '%'$(("$cmd_length"-"${#cmd_title}"))'s'
+   printf '%'$(("${values_lengths['timeout']}"-"${#timeout_title}"))'s'
+   printf "|\033[1m$job_cmd_title\033[0m"
+   printf '%'$(("${values_lengths['job_cmd']}"-"${#job_cmd_title}"))'s'
+   printf "|\033[1m$fswatch_opt_title\033[0m"
+   printf '%'$(("${values_lengths['fswatch_opt']}"-"${#fswatch_opt_title}"))'s'
    printf '|\n'
    # 3 line
    printf '+'
-   printf '%0.s-' $(seq 1 "$label_length")
+   printf '%0.s-' $(seq 1 "${values_lengths['id']}")
    printf '+'
-   printf '%0.s-' $(seq 1 "$timeout_length")
+   printf '%0.s-' $(seq 1 "${values_lengths['label']}")
    printf '+'
-   printf '%0.s-' $(seq 1 "$cmd_length")
+   printf '%0.s-' $(seq 1 "${values_lengths['path']}")
+   printf '+'
+   printf '%0.s-' $(seq 1 "${values_lengths['timeout']}")
+   printf '+'
+   printf '%0.s-' $(seq 1 "${values_lengths['job_cmd']}")
+   printf '+'
+   printf '%0.s-' $(seq 1 "${values_lengths['fswatch_opt']}")
    printf '+\n'
 
-   for label in "${labels[@]}"; do
+   for id in "${ids[@]}"; do
 
       # 4 line
-      printf "| $label"
-      printf '%'$(("$label_length"-1-"${#label}"))'s'
-      printf '| '"${timeouts[$label]}"
-      printf '%'$(("$timeout_length"-1-"${#timeouts[$label]}"))'s'
-      printf '| '"${job_cmds[$label]}"
-      printf '%'$(("$cmd_length"-1-"${#job_cmds[$label]}"))'s'
+      printf "| $id"
+      printf '%'$(("${values_lengths['id']}"-1-"${#id}"))'s'
+      printf "| ${labels[$id]}"
+      printf '%'$(("${values_lengths['label']}"-1-"${#labels[$id]}"))'s'
+      printf "| ${paths[$id]}"
+      printf '%'$(("${values_lengths['path']}"-1-"${#paths[$id]}"))'s'
+      printf "| ${timeouts[$id]}"
+      printf '%'$(("${values_lengths['timeout']}"-1-"${#timeouts[$id]}"))'s'
+      printf "| ${job_cmds[$id]}"
+      printf '%'$(("${values_lengths['job_cmd']}"-1-"${#job_cmds[$id]}"))'s'
+      printf "| ${fswatch_opts[$id]}"
+      printf '%'$(("${values_lengths['fswatch_opt']}"-1-"${#fswatch_opts[$id]}"))'s'
       printf '|\n'
       # 5 line
       printf '+'
-      printf '%0.s-' $(seq 1 "$label_length")
+      printf '%0.s-' $(seq 1 "${values_lengths['id']}")
       printf '+'
-      printf '%0.s-' $(seq 1 "$timeout_length")
+      printf '%0.s-' $(seq 1 "${values_lengths['label']}")
       printf '+'
-      printf '%0.s-' $(seq 1 "$cmd_length")
+      printf '%0.s-' $(seq 1 "${values_lengths['path']}")
+      printf '+'
+      printf '%0.s-' $(seq 1 "${values_lengths['timeout']}")
+      printf '+'
+      printf '%0.s-' $(seq 1 "${values_lengths['job_cmd']}")
+      printf '+'
+      printf '%0.s-' $(seq 1 "${values_lengths['fswatch_opt']}")
       printf '+\n'
    done
    exit
@@ -419,7 +455,6 @@ if [ "$cli_cmd" == 'set' ]; then
    echo "job timeout: $cli_timeout"
    echo "job command: $cli_job_cmd"
    echo "fswatch options: $cli_fswatch_opt"
-
 fi
 
 # UNSET DISK ----------------------------------------------------------------------------------------
