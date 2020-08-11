@@ -312,102 +312,6 @@ if [ "$cli_cmd" == 'print' ]; then
    exit
 fi
 
-# CHECKS --------------------------------------------------------------------------------------------
-
-NUM_RGX='^[0-9]+$' # it's number
-UNSAFE_RGX="[\0\`\\\/:\;\*\"\'\<\>\|\.\,]" # UNSAFE SYMBOLS: \0 ` \ / : ; * " ' < > | . ,
-SED_CUT_MOUNT='s/.\+MOUNTPOINT="\|\"$//g' # cut mount
-cli_label_ok=
-mount_point=
-mount_unit=
-
-while [ -z "$cli_label_ok" ] || [ "$cli_label_ok" == 'no' ]; do
-
-   cli_label_ok='yes'
-
-   if [ "$cli_label_ok" == 'yes' ] && [[ "$cli_label" =~ $UNSAFE_RGX ]]; then
-
-      echo 'Disk label contains not a safe symbols'
-      cli_label_ok='no'
-   fi
-
-   if [ "$cli_label_ok" == 'yes' ]; then
-
-      # find mount point
-      while read line; do
-
-         if [[ "$line" =~ "$cli_label" ]]; then
-
-            mount_point=$(echo "$line" | sed "$SED_CUT_MOUNT")
-         fi
-      done < <(lsblk -Ppo pkname,label,mountpoint)
-
-      if [ -z "$mount_point" ]; then
-
-         printf "Can't find mount point, try mount disk before: %s\n" "$cli_label"
-         cli_label_ok='no'
-      fi
-   fi
-
-   if [ "$cli_label_ok" == 'yes' ]; then
-
-      mount_unit=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -d '\n' printf "%b\n" | grep "$cli_label")
-
-      if [ -z "$mount_unit" ]; then
-
-         printf "Can't find mount unit, for: %s\n" "$cli_label"
-         cli_label_ok='no'
-      fi
-   fi
-
-   if [ "$cli_label_ok" == 'no' ]; then
-
-      echo 'Enter disk label: '
-      read cli_label
-   fi
-done
-
-watch_path=
-cli_path_ok=
-
-while [ ! -z "$cli_path" ] && { [ -z "$cli_path_ok" ] || [ "$cli_path_ok" == 'no' ]; }; do
-
-   cli_path=$(echo "$cli_path" | sed 's/^\(\.\/\|\/\)//')
-   watch_path="$mount_point/$cli_path"
-
-   if [ -f "$watch_path" ] || [ -d "$watch_path" ]; then
-
-      break
-   fi
-
-   printf 'Path not found: %s\n' "$watch_path"
-   printf 'Enter path: '
-   read cli_path
-done
-
-while [ "$cli_cmd" == 'set' ] && [[ ! "$cli_timeout" =~ $NUM_RGX ]]; do
-
-   echo 'Enter job timeout in seconds: '
-   read cli_timeout
-done
-
-if [ "$cli_cmd" == 'set' ] && [ -z "$cli_job_cmd" ]; then
-
-   printf "Enter job command: "
-   read cli_job_cmd
-
-   if [ -z "$cli_job_cmd" ]; then
-
-      cli_job_cmd='sdparm --readonly --command=stop $dev'
-   fi
-fi
-
-if [ "$cli_cmd" == 'set' ] && [[ -z "$cli_fswatch_opt" ]]; then
-
-   printf 'Enter fswatch options or skip:'
-   read cli_job_cmd
-fi
-
 # INSTALL -------------------------------------------------------------------------------------------
 
 # add config file
@@ -438,10 +342,98 @@ fi
 
 # SET RECORD ----------------------------------------------------------------------------------------
 
-# set disk
 if [ "$cli_cmd" == 'set' ]; then
 
    read_config
+
+   NUM_RGX='^[0-9]+$'
+   UNSAFE_RGX="[\0\`\\\/:\;\*\"\'\<\>\|\.\,]" # UNSAFE SYMBOLS: \0 ` \ / : ; * " ' < > | . ,
+   SED_CUT_MOUNT='s/.\+MOUNTPOINT="\|\"$//g' # cut mount
+   cli_label_ok=
+   mount_point=
+   mount_unit=
+
+   while [ -z "$cli_label_ok" ] || [ "$cli_label_ok" == 'no' ]; do
+
+      cli_label_ok='yes'
+
+      if [ "$cli_label_ok" == 'yes' ] && [[ "$cli_label" =~ $UNSAFE_RGX ]]; then
+
+         echo 'Disk label contains not a safe symbols'
+         cli_label_ok='no'
+      fi
+
+      if [ "$cli_label_ok" == 'yes' ]; then
+
+         # find mount point
+         while read line; do
+
+            if [[ "$line" =~ "$cli_label" ]]; then
+
+               mount_point=$(echo "$line" | sed "$SED_CUT_MOUNT")
+            fi
+         done < <(lsblk -Ppo pkname,label,mountpoint)
+
+         if [ -z "$mount_point" ]; then
+
+            printf "Can't find mount point, try mount disk before: %s\n" "$cli_label"
+            cli_label_ok='no'
+         fi
+      fi
+
+      if [ "$cli_label_ok" == 'yes' ]; then
+
+         mount_unit=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -d '\n' printf "%b\n" | grep "$cli_label")
+
+         if [ -z "$mount_unit" ]; then
+
+            printf "Can't find mount unit, for: %s\n" "$cli_label"
+            cli_label_ok='no'
+         fi
+      fi
+
+      if [ "$cli_label_ok" == 'no' ] || [ -z "$cli_label" ]; then
+
+         echo 'Enter disk label: '
+         read cli_label
+      fi
+   done
+
+   watch_path=
+   cli_path_ok=
+
+   while [ ! -z "$cli_path" ] && { [ -z "$cli_path_ok" ] || [ "$cli_path_ok" == 'no' ]; }; do
+
+      cli_path=$(echo "$cli_path" | sed 's/^\(\.\/\|\/\)//')
+      watch_path="$mount_point/$cli_path"
+
+      if [ -f "$watch_path" ] || [ -d "$watch_path" ]; then
+
+         break
+      fi
+
+      printf 'Path not found: %s\n' "$watch_path"
+      printf 'Enter path: '
+      read cli_path
+   done
+
+   while [[ ! "$cli_timeout" =~ $NUM_RGX ]]; do
+
+      echo 'Enter job timeout in seconds: '
+      read cli_timeout
+   done
+
+   if [ -z "$cli_job_cmd" ]; then
+
+      printf "Enter job command: "
+      read cli_job_cmd
+   fi
+
+   if [[ -z "$cli_fswatch_opt" ]]; then
+
+      printf 'Enter fswatch options or skip:'
+      read cli_fswatch_opt
+   fi
 
    cli_id=$(("${#ids[@]}"+1))
    ids+=("$cli_id")
