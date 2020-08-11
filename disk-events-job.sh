@@ -13,6 +13,14 @@ LOG=
 
 # FUNCTIONS -----------------------------------------------------------------------------------------
 
+function log {
+
+   if [ "$LOG" == "true" ]; then
+
+      printf "$@" | tee -a "$LOG_FILE"
+   fi
+}
+
 ids=()
 declare -A labels
 declare -A paths
@@ -38,7 +46,7 @@ function read_config {
 
    if [ ! -f "$CONFIG_FILE" ]; then
 
-      printf '%s: Config file not found\n' "$NAME"
+      log '%s: Config file not found\n' "$NAME"
       exit
    fi
 
@@ -64,8 +72,8 @@ function read_config {
 
          else
 
-            printf '%s: Wrong line in the config:\n' "$NAME"
-            printf '%s: %s\n' "$NAME" "$line"
+            log '%s: Wrong line in the config:\n' "$NAME"
+            log '%s: %s\n' "$NAME" "$line"
             exit
          fi
       fi
@@ -73,11 +81,11 @@ function read_config {
 
    if [[ "${#ids[@]}" -eq 0 ]]; then
 
-      printf '%s: There are no config data\n' "$NAME"
+      log '%s: There are no config data\n' "$NAME"
       exit
    fi
 
-   if [ "$LOG" == "true" ]; then printf '%s: Read config success: %s\n' "$NAME" "$CONFIG_FILE"; fi
+   log '%s: Read config success: %s\n' "$NAME" "$CONFIG_FILE"
 }
 
 function job {
@@ -109,12 +117,12 @@ function job {
       sleep 1
       echo "<${args['id']}><$i>" > $JOB_FIFO &
 
-      if [ "$LOG" == "true" ]; then printf '%s: Job id: %s, seconds: %s\n' "$NAME" "${args['id']}" "$i"; fi
+      log '%s: Job id: %s, seconds: %s\n' "$NAME" "${args['id']}" "$i"
    done
 
    if [ ! -z "${args['command']}" ]; then
 
-      if [ "$LOG" == "true" ]; then printf '%s: Executing job whith id: %s\n' "$NAME" "${args['id']}"; fi
+      log '%s: Executing job whith id: %s\n' "$NAME" "${args['id']}"
 
       eval "${args['command']}"
    fi
@@ -133,8 +141,9 @@ if [ ! -z "$*" ]; then
    if [[ ! "$cli_log" =~ ^(true|false)$ ]]; then
 
       cli_log=
-      printf '%s: Bad "--log" value, allowed: true or false\n' "$NAME"
+      log '%s: Bad "--log" value, allowed: true or false\n' "$NAME"
    fi
+   LOG="$cli_log"
 fi
 
 # GET MOUNT POINTS, DEVS, OPTS, ... -----------------------------------------------------------------
@@ -180,7 +189,7 @@ done < <(lsblk -Ppo pkname,label,mountpoint)
 
 if [[ "${#watch_paths[@]}" -eq 0 ]]; then
 
-   printf '%s: No path found for watching\n' "$NAME"
+   log '%s: No path found for watching\n' "$NAME"
    exit
 fi
 
@@ -202,7 +211,7 @@ if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
 
    echo 'restart' > $JOB_FIFO &
 
-   if [ "$LOG" == "true" ]; then printf '%s: Starting previous jobs\n' "$NAME"; fi
+   log '%s: Starting previous jobs\n' "$NAME"
 
    # remember previous timers state
    while read -t 0.01 line <& 3; do tmpstr="$line"; done
@@ -222,7 +231,7 @@ if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
    kill -- -"$PREVIOUS_PID"
    tmpstr=''
 
-   if [ "$LOG" == "true" ]; then printf '%s: Previous jobs started\n' "$NAME"; fi
+   log '%s: Previous jobs started\n' "$NAME"
 fi
 
 # START PREVIOUS JOB IF EXISTS ----------------------------------------------------------------------
@@ -250,7 +259,7 @@ mkfifo -m 600 "$RESET_FIFO"
 
 echo "$$" > "$PID_FILE"
 
-if [ "$LOG" == "true" ]; then printf '%s: Running process with PID: %s\n' "$NAME" "$$"; fi
+log '%s: Running process with PID: %s\n' "$NAME" "$$"
 
 # JOB -----------------------------------------------------------------------------------------------
 
@@ -271,9 +280,11 @@ while read access_path; do
 
       echo "$current_id" > $JOB_FIFO &
 
-      if [ "$LOG" == "true" ]; then printf '%s: Event for id: %s\n' "$NAME" "$id"; fi
+      log '%s: Event for id: %s\n' "$NAME" "$id"
    fi
 done < <(fswatch --batch-marker="$BATCH_MARKER" "${watch_opts[@]}" "${watch_paths[@]}") &
+
+log "%s: Watching: %s\n" "$NAME" "${watch_paths[@]}"
 
 declare -A job_pids
 id=

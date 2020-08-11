@@ -279,7 +279,10 @@ if [ -z "$cli_cmd" ] || [[ ! " ${COMMANDS[@]} " =~ " ${cli_cmd} " ]]; then
       3) cli_cmd='print';;
       4) cli_cmd='uninstall';;
       5) cli_cmd='quit';;
-      *) echo "Invalid option $cli_cmd";;
+      *)
+         echo "Invalid option $cli_cmd"
+         exit
+         ;;
    esac
 fi
 
@@ -458,14 +461,14 @@ if [ "$cli_cmd" == 'set' ]; then
    sed '/^$/d' "$TMP_FILE" > "$CONFIG_FILE" # remove empty lines
 
    # add service lines and restart service
-   # after="After=$mount_unit"
-   # wantedBy="WantedBy=$mount_unit"
-   # awk -v after="$after" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print after; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
-   # mv "$TMP_FILE" "$SERVICE_FILE"
+   after="After=$mount_unit"
+   wantedBy="WantedBy=$mount_unit"
+   awk -v after="$after" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print after; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
+   mv "$TMP_FILE" "$SERVICE_FILE"
 
-   # systemctl enable "$NAME.service"
-   # systemctl start "$NAME.service"
-   # systemctl daemon-reload
+   systemctl enable "$NAME.service"
+   systemctl start "$NAME.service"
+   systemctl daemon-reload
 
    printf 'Record with id: %s added\n' "$cli_id"
    printf 'disk label: %s\n' "$cli_label"
@@ -487,7 +490,7 @@ if [ "$cli_cmd" == 'unset' ]; then
    sed "/^<$id>/d" "$CONFIG_FILE" > "$TMP_FILE"
    mv "$TMP_FILE" "$CONFIG_FILE"
 
-   # systemctl daemon-reload
+   systemctl daemon-reload
 
    printf 'Record with id: %s removed\n' "$id"
 fi
