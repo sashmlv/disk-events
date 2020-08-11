@@ -393,7 +393,7 @@ done
 
 if [ "$cli_cmd" == 'set' ] && [ -z "$cli_job_cmd" ]; then
 
-   printf "Default job command: sdparm --readonly --command=stop \$dev\nParameter \$dev the device path (/dev/sdx)\nEnter job command or skip for default: "
+   printf "Enter job command: "
    read cli_job_cmd
 
    if [ -z "$cli_job_cmd" ]; then

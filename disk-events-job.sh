@@ -78,43 +78,39 @@ function read_config {
 
 function job {
 
-   local id=
-   local label=
-   local path=
-   local timeout=
-   local job_cmd=
-   local fswatch_opt=
-   local dev=
-   local sec=
+   declare -A args
+   local key=
+   local val=
 
    while IFS= read line; do
 
       key=$(echo "$line" | sed "$SED_CUT_KEY")
       val=$(echo "$line" | sed "$SED_CUT_VAL")
 
-      if [ "$key" == 'id' ]; then id="$val";
-      elif [ "$key" == 'label' ]; then label="$val";
-      elif [ "$key" == 'path' ]; then path="$val";
-      elif [ "$key" == 'timeout' ]; then timeout="$val";
-      elif [ "$key" == 'job_cmd' ]; then job_cmd="$val";
-      elif [ "$key" == 'fswatch_opt' ]; then fswatch_opt="$val";
-      elif [ "$key" == 'dev' ]; then dev="$val";
+      if [ "$key" == 'id' ]; then args['id']="$val";
+      elif [ "$key" == 'label' ]; then args['label']="$val";
+      elif [ "$key" == 'path' ]; then args['path']="$val";
+      elif [ "$key" == 'timeout' ]; then args['timeout']="$val";
+      elif [ "$key" == 'job_cmd' ]; then args['command']="$val";
+      elif [ "$key" == 'fswatch_opt' ]; then args['fswatch_opts']="$val";
+      elif [ "$key" == 'dev' ]; then args['dev']="$val";
       elif [ "$key" == 'sec' ]; then
-         sec="$val"
-         job_seconds["$id"]="$sec"
+         args['sec']="$val"
+         job_seconds["${args['id']}"]="$val"
       fi
    done <<< "$1"
 
-   for i in $(seq "${timeout:-$DEFAULT_TIMEOUT}" -1 1); do
+   for i in $(seq "${args['timeout']:-$DEFAULT_TIMEOUT}" -1 1); do
 
       sleep 1
-      echo "<$id><$i>" > $JOB_FIFO &
+      echo "<${args['id']}><$i>" > $JOB_FIFO &
+      echo "<${args['id']}><$i>"
    done
 
-   if [ ! -z "$job_cmd" ]; then
+   if [ ! -z "${args['command']}" ]; then
 
-      echo "Executing $id job"
-      # $("$job_cmd" "$id" "$label" "$path" "$timeout" "$job_cmd" "$fswatch_opt" "$dev")
+      echo "Executing ${args['id']} job"
+      eval "${args['command']}"
    fi
 }
 
@@ -249,7 +245,6 @@ while read access_path; do
 
       echo "$current_id" > $JOB_FIFO &
    fi
-# done < <(fswatch --format="<%p><%f>" --event-flag-separator="," --batch-marker="$BATCH_MARKER" "${watch_opts[@]}" "${watch_paths[@]}") &
 done < <(fswatch --batch-marker="$BATCH_MARKER" "${watch_opts[@]}" "${watch_paths[@]}") &
 
 declare -A job_pids
