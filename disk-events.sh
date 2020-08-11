@@ -44,7 +44,7 @@ function read_config {
 
    if [ ! -f "$CONFIG_FILE" ]; then
 
-      printf 'Config file not found'
+      printf 'Config file not found\n'
       exit
    fi
 
@@ -69,8 +69,8 @@ function read_config {
             fswatch_opts["$id"]="$fswatch_opt"
          else
 
-            echo "Wrong line in the config:"
-            echo "$line"
+            printf 'Wrong line in the config:\n'
+            printf '%s\n' "$line"
             clean_exit
          fi
       fi
@@ -229,13 +229,7 @@ function print_config {
 
 if [ ! -x "$(command -v fswatch)" ]; then
 
-   echo '"fswatch" not found, please install "fswatch"'
-   exit
-fi
-
-if [ ! -x "$(command -v sdparm)" ]; then
-
-   echo '"sdparm" not found, please install "sdparm"'
+   printf '"fswatch" not found, please install "fswatch"\n'
    exit
 fi
 
@@ -253,11 +247,11 @@ if [ ! -z "$cli_cmd" ]; then shift; fi
 
 if [ ! -z "$*" ]; then
 
-   AWK_CUT_ARG_LABEL='match($0, /(-l\ |-l=|--label\ |--label=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-l\ |-l=|--label\ |--label=)|\ $/, "", str); print str }'
-   AWK_CUT_ARG_PATH='match($0, /(-p\ |-p=|--path\ |--path=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-p\ |-p=|--path\ |--path=)|\ $/, "", str); print str }'
-   AWK_CUT_ARG_TIMEOUT='match($0, /(-t\ |-t=|--timeout\ |--timeout=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-t\ |-t=|--timeout\ |--timeout=)|\ $/, "", str); print str }'
-   AWK_CUT_ARG_COMMAND='match($0, /(-c\ |-c=|--command\ |--command=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-c\ |-c=|--command\ |--command=)|\ $/, "", str); print str }'
-   AWK_CUT_ARG_FSWATCH='match($0, /(-f\ |-f=|--fswatch\ |--fswatch=)[\47"].+[\47"]/) { str=substr($0, RSTART, RLENGTH); gsub( /^(-f\ |-f=|--fswatch\ |--fswatch=)[\47|"]|[\47|"]$/, "", str); print str }'
+   AWK_CUT_ARG_LABEL='match($0, /(--label\ |--label=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--label\ |--label=)|\ $/, "", str); print str }'
+   AWK_CUT_ARG_PATH='match($0, /(--path\ |--path=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--path\ |--path=)|\ $/, "", str); print str }'
+   AWK_CUT_ARG_TIMEOUT='match($0, /(--timeout\ |--timeout=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--timeout\ |--timeout=)|\ $/, "", str); print str }'
+   AWK_CUT_ARG_COMMAND='match($0, /(--command\ |--command=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--command\ |--command=)|\ $/, "", str); print str }'
+   AWK_CUT_ARG_FSWATCH='match($0, /(--fswatch\ |--fswatch=)[\47"].+[\47"]/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--fswatch\ |--fswatch=)[\47|"]|[\47|"]$/, "", str); print str }'
 
    cli_label=$(echo "$*" | awk "$AWK_CUT_ARG_LABEL")
    cli_path=$(echo "$*" | awk "$AWK_CUT_ARG_PATH")
@@ -359,7 +353,7 @@ if [ "$cli_cmd" == 'set' ]; then
 
       if [ "$cli_label_ok" == 'yes' ] && [[ "$cli_label" =~ $UNSAFE_RGX ]]; then
 
-         echo 'Disk label contains not a safe symbols'
+         printf 'Disk label contains not a safe symbols\n'
          cli_label_ok='no'
       fi
 
@@ -394,7 +388,7 @@ if [ "$cli_cmd" == 'set' ]; then
 
       if [ "$cli_label_ok" == 'no' ] || [ -z "$cli_label" ]; then
 
-         echo 'Enter disk label: '
+         printf 'Enter disk label: '
          read cli_label
       fi
    done
@@ -412,26 +406,25 @@ if [ "$cli_cmd" == 'set' ]; then
          break
       fi
 
-      printf 'Path not found: %s\n' "$watch_path"
       printf 'Enter path: '
       read cli_path
    done
 
    while [[ ! "$cli_timeout" =~ $NUM_RGX ]]; do
 
-      echo 'Enter job timeout in seconds: '
+      printf 'Enter job timeout in seconds: '
       read cli_timeout
    done
 
    if [ -z "$cli_job_cmd" ]; then
 
-      printf "Enter job command: "
+      printf 'Enter job command: '
       read cli_job_cmd
    fi
 
    if [[ -z "$cli_fswatch_opt" ]]; then
 
-      printf 'Enter fswatch options or skip:'
+      printf 'Enter fswatch options or skip: '
       read cli_fswatch_opt
    fi
 
@@ -474,12 +467,12 @@ if [ "$cli_cmd" == 'set' ]; then
    # systemctl start "$NAME.service"
    # systemctl daemon-reload
 
-   echo "Added $cli_id:"
-   echo "disk label: $cli_label"
-   echo "path: $cli_path"
-   echo "job timeout: $cli_timeout"
-   echo "job command: $cli_job_cmd"
-   echo "fswatch options: $cli_fswatch_opt"
+   printf 'Record with id: %s added\n' "$cli_id"
+   printf 'disk label: %s\n' "$cli_label"
+   printf 'path: %s\n' "$cli_path"
+   printf 'job timeout: %s\n' "$cli_timeout"
+   printf 'job command: %s\n' "$cli_job_cmd"
+   printf 'fswatch options: %s\n' "$cli_fswatch_opt"
 fi
 
 # UNSET RECORD --------------------------------------------------------------------------------------
@@ -496,5 +489,5 @@ if [ "$cli_cmd" == 'unset' ]; then
 
    # systemctl daemon-reload
 
-   echo "Removed record: $id"
+   printf 'Record with id: %s removed\n' "$id"
 fi

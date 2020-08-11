@@ -8,6 +8,8 @@ CONFIG_FILE="/home/$USER/bin/$NAME.conf"
 PID_FILE="/tmp/$NAME.pid"
 JOB_FIFO_PATH="/tmp/$NAME.job.tmp"
 RESET_FIFO_PATH="/tmp/$NAME.seconds.tmp"
+LOG_FILE="/home/$USER/bin/$NAME.log"
+LOG=
 
 # FUNCTIONS -----------------------------------------------------------------------------------------
 
@@ -36,7 +38,7 @@ function read_config {
 
    if [ ! -f "$CONFIG_FILE" ]; then
 
-      printf 'Config file not found'
+      printf '%s: Config file not found\n' "$NAME"
       exit
    fi
 
@@ -62,8 +64,8 @@ function read_config {
 
          else
 
-            printf 'Wrong line in the config:\n'
-            printf "$line"
+            printf '%s: Wrong line in the config:\n' "$NAME"
+            printf '%s: %s\n' "$NAME" "$line"
             exit
          fi
       fi
@@ -71,9 +73,11 @@ function read_config {
 
    if [[ "${#ids[@]}" -eq 0 ]]; then
 
-      printf 'There are no config data'
+      printf '%s: There are no config data\n' "$NAME"
       exit
    fi
+
+   if [ "$LOG" == "true" ]; then printf '%s: Read config success: %s\n' "$NAME" "$CONFIG_FILE"; fi
 }
 
 function job {
@@ -104,15 +108,34 @@ function job {
 
       sleep 1
       echo "<${args['id']}><$i>" > $JOB_FIFO &
-      echo "<${args['id']}><$i>"
+
+      if [ "$LOG" == "true" ]; then printf '%s: Job id: %s, seconds: %s\n' "$NAME" "${args['id']}" "$i"; fi
    done
 
    if [ ! -z "${args['command']}" ]; then
 
-      echo "Executing ${args['id']} job"
+      if [ "$LOG" == "true" ]; then printf '%s: Executing job whith id: %s\n' "$NAME" "${args['id']}"; fi
+
       eval "${args['command']}"
    fi
 }
+
+# CLI ARGUMENTS -------------------------------------------------------------------------------------
+
+cli_log=
+
+if [ ! -z "$*" ]; then
+
+   AWK_CUT_ARG_LOG='match($0, /(--log\ |--log=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--log\ |--log=)|\ $/, "", str); print str }'
+
+   cli_log=$(echo "$*" | awk "$AWK_CUT_ARG_LOG")
+
+   if [[ ! "$cli_log" =~ ^(true|false)$ ]]; then
+
+      cli_log=
+      printf '%s: Bad "--log" value, allowed: true or false\n' "$NAME"
+   fi
+fi
 
 # GET MOUNT POINTS, DEVS, OPTS, ... -----------------------------------------------------------------
 
@@ -157,7 +180,7 @@ done < <(lsblk -Ppo pkname,label,mountpoint)
 
 if [[ "${#watch_paths[@]}" -eq 0 ]]; then
 
-   printf 'No path found for watching'
+   printf '%s: No path found for watching\n' "$NAME"
    exit
 fi
 
@@ -179,6 +202,8 @@ if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
 
    echo 'restart' > $JOB_FIFO &
 
+   if [ "$LOG" == "true" ]; then printf '%s: Starting previous jobs\n' "$NAME"; fi
+
    # remember previous timers state
    while read -t 0.01 line <& 3; do tmpstr="$line"; done
 
@@ -196,6 +221,8 @@ if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
    PREVIOUS_PID=$(cat 2>/dev/null "$PID_FILE")
    kill -- -"$PREVIOUS_PID"
    tmpstr=''
+
+   if [ "$LOG" == "true" ]; then printf '%s: Previous jobs started\n' "$NAME"; fi
 fi
 
 # START PREVIOUS JOB IF EXISTS ----------------------------------------------------------------------
@@ -222,7 +249,8 @@ RESET_FIFO=$RESET_FIFO_PATH
 mkfifo -m 600 "$RESET_FIFO"
 
 echo "$$" > "$PID_FILE"
-echo "$$"
+
+if [ "$LOG" == "true" ]; then printf '%s: Running process with PID: %s\n' "$NAME" "$$"; fi
 
 # JOB -----------------------------------------------------------------------------------------------
 
@@ -230,8 +258,6 @@ current_id=
 
 # watch disk access events, and write them
 while read access_path; do
-
-   # echo "$access_path"
 
    for id in "${!watch_paths[@]}"; do
 
@@ -244,6 +270,8 @@ while read access_path; do
    if [ "$access_path" == "$BATCH_MARKER" ]; then
 
       echo "$current_id" > $JOB_FIFO &
+
+      if [ "$LOG" == "true" ]; then printf '%s: Event for id: %s\n' "$NAME" "$id"; fi
    fi
 done < <(fswatch --batch-marker="$BATCH_MARKER" "${watch_opts[@]}" "${watch_paths[@]}") &
 
