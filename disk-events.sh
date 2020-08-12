@@ -5,7 +5,7 @@
 NAME='disk-events'
 JOB_FILE="./$NAME-job.sh"
 CONFIG_FILE="./$NAME.conf"
-TMP_FILE='./$NAME.tmp'
+TMP_FILE="./$NAME.tmp"
 SERVICE_FILE="/etc/systemd/system/$NAME.service"
 
 # FUNCTIONS ----------------------------------------------------------------------------------------
@@ -286,9 +286,9 @@ if [ "$cli_cmd" == 'quit' ]; then echo "$cli_cmd"; exit; fi
 
 if [ "$cli_cmd" == 'uninstall' ]; then
 
-   systemctl stop "$NAME.service"
-   systemctl disable "$NAME.service"
-   systemctl daemon-reload
+   # systemctl stop "$NAME.service"
+   # systemctl disable "$NAME.service"
+   # systemctl daemon-reload
    rm -f "$SERVICE_FILE"
    exit
 fi
@@ -457,9 +457,9 @@ if [ "$cli_cmd" == 'set' ]; then
    awk -v after="$after" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print after; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
    mv "$TMP_FILE" "$SERVICE_FILE"
 
-   systemctl enable "$NAME.service"
-   systemctl start "$NAME.service"
-   systemctl daemon-reload
+   # systemctl enable "$NAME.service"
+   # systemctl start "$NAME.service"
+   # systemctl daemon-reload
 
    printf 'Record with id: %s added\n' "$cli_id"
    printf 'disk label: %s\n' "$cli_label"
@@ -481,7 +481,7 @@ if [ "$cli_cmd" == 'unset' ]; then
    sed "/^<$id>/d" "$CONFIG_FILE" > "$TMP_FILE"
    mv "$TMP_FILE" "$CONFIG_FILE"
 
-   systemctl daemon-reload
+   # systemctl daemon-reload
 
    printf 'Record with id: %s removed\n' "$id"
 fi
