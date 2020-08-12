@@ -3,7 +3,8 @@
 # CLI FORMAT: sudo ./disk-events.sh set --label=<disk label> --path=<path> --timeout=<timeout> --command=<command> --fswatch=<fswatch options>
 
 NAME='disk-events'
-JOB_FILE="./$NAME-job.sh"
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+JOB_FILE="$DIR/$NAME-job.sh"
 CONFIG_FILE="./$NAME.conf"
 TMP_FILE="./$NAME.tmp"
 SERVICE_FILE="/etc/systemd/system/$NAME.service"
@@ -371,7 +372,7 @@ if [ "$cli_cmd" == 'set' ]; then
 
       if [ "$cli_label_ok" == 'yes' ]; then
 
-         mount_unit=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -d '\n' printf "%b\n" | grep "$cli_label")
+         mount_unit=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -d '\n' printf "%b\n" | grep "$cli_label" | xargs)
 
          if [ -z "$mount_unit" ]; then
 
@@ -455,7 +456,7 @@ if [ "$cli_cmd" == 'set' ]; then
    after="After=$mount_unit"
    wantedBy="WantedBy=$mount_unit"
    awk -v after="$after" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print after; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
-   mv "$TMP_FILE" "$SERVICE_FILE"
+   mv -f "$TMP_FILE" "$SERVICE_FILE"
 
    # systemctl enable "$NAME.service"
    # systemctl start "$NAME.service"
@@ -479,7 +480,7 @@ if [ "$cli_cmd" == 'unset' ]; then
    read id
 
    sed "/^<$id>/d" "$CONFIG_FILE" > "$TMP_FILE"
-   mv "$TMP_FILE" "$CONFIG_FILE"
+   mv -f "$TMP_FILE" "$CONFIG_FILE"
 
    # systemctl daemon-reload
 
