@@ -377,7 +377,7 @@ if [ "$cli_cmd" == 'set' ]; then
 
       if [ "$cli_label_ok" == 'yes' ]; then
 
-         mount_unit=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -0 systemd-escape -u | grep "$cli_label" | awk '{$1=$1};1' | xargs -d '\n' systemd-escape)
+         mount_unit=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -0 systemd-escape -u | grep "$cli_label" | awk '{$1=$1};1' | xargs -d '\n' systemd-escape | sed 's/\x/\\x/g')
 
          if [ -z "$mount_unit" ]; then
 
