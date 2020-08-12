@@ -281,15 +281,15 @@ fi
 
 # QUIT ----------------------------------------------------------------------------------------------
 
-if [ "$cli_cmd" == 'quit' ]; then echo "$cli_cmd"; exit; fi
+if [ "$cli_cmd" == 'quit' ]; then printf '%s' "$cli_cmd"; exit; fi
 
 # UNINSTALL -----------------------------------------------------------------------------------------
 
 if [ "$cli_cmd" == 'uninstall' ]; then
 
-   # systemctl stop "$NAME.service"
-   # systemctl disable "$NAME.service"
-   # systemctl daemon-reload
+   systemctl stop "$NAME.service"
+   systemctl disable "$NAME.service"
+   systemctl daemon-reload
    rm -f "$SERVICE_FILE"
    exit
 fi
@@ -319,11 +319,16 @@ fi
 # add service for disk mount/unmount monitoring
 if [ ! -f "$SERVICE_FILE" ]; then
 
+   touch "$SERVICE_FILE" 2> /dev/null || {
+      printf "Can't write service file, permission denied: %s\n" "$SERVICE_FILE"
+      exit
+   }
+
    cat > "$SERVICE_FILE" <<EOF
 [Unit]
 
 [Service]
-ExecStart=$JOB_FILE
+ExecStart=$JOB_FILE --log=true
 
 [Install]
 EOF
@@ -372,7 +377,7 @@ if [ "$cli_cmd" == 'set' ]; then
 
       if [ "$cli_label_ok" == 'yes' ]; then
 
-         mount_unit=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -d '\n' printf "%b\n" | grep "$cli_label" | xargs)
+         mount_unit=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -0 systemd-escape -u | grep "$cli_label" | awk '{$1=$1};1' | xargs -d '\n' systemd-escape)
 
          if [ -z "$mount_unit" ]; then
 
@@ -387,6 +392,15 @@ if [ "$cli_cmd" == 'set' ]; then
          read cli_label
       fi
    done
+
+   # add service lines
+   after="After=$mount_unit"
+   wantedBy="WantedBy=$mount_unit"
+   awk -v after="$after" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print after; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
+   mv -f "$TMP_FILE" "$SERVICE_FILE" 2> /dev/null || {
+      printf "Can't write service file, permission denied: %s\n" "$SERVICE_FILE"
+      exit
+   }
 
    watch_path=
    cli_path_ok=
@@ -452,15 +466,10 @@ if [ "$cli_cmd" == 'set' ]; then
 
    sed '/^$/d' "$TMP_FILE" > "$CONFIG_FILE" # remove empty lines
 
-   # add service lines and restart service
-   after="After=$mount_unit"
-   wantedBy="WantedBy=$mount_unit"
-   awk -v after="$after" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print after; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
-   mv -f "$TMP_FILE" "$SERVICE_FILE"
-
-   # systemctl enable "$NAME.service"
-   # systemctl start "$NAME.service"
-   # systemctl daemon-reload
+   # restart service
+   systemctl enable "$NAME.service"
+   systemctl start "$NAME.service"
+   systemctl daemon-reload
 
    printf 'Record with id: %s added\n' "$cli_id"
    printf 'disk label: %s\n' "$cli_label"
@@ -479,10 +488,14 @@ if [ "$cli_cmd" == 'unset' ]; then
    printf 'Enter record id: '
    read id
 
-   sed "/^<$id>/d" "$CONFIG_FILE" > "$TMP_FILE"
+   sed "/^<$id>/d" "$CONFIG_FILE" > "$TMP_FILE" 2> /dev/null || {
+      printf "Can't write config file, permission denied: %s\n" "$CONFIG_FILE"
+      exit
+   }
+
    mv -f "$TMP_FILE" "$CONFIG_FILE"
 
-   # systemctl daemon-reload
+   systemctl daemon-reload
 
    printf 'Record with id: %s removed\n' "$id"
 fi
