@@ -4,11 +4,12 @@ NAME='disk-events'
 DEFAULT_TIMEOUT=300
 BATCH_MARKER='------------'
 CONFIG_RGX='^<.+><[0-9]+><.+>$' # match config line
-CONFIG_FILE="/home/$USER/bin/$NAME.conf"
-PID_FILE="/tmp/$NAME.pid"
-JOB_FIFO_PATH="/tmp/$NAME.job.tmp"
-RESET_FIFO_PATH="/tmp/$NAME.seconds.tmp"
-LOG_FILE="/home/$USER/bin/$NAME.log"
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+CONFIG_FILE="$DIR/$NAME.conf"
+PID_FILE="$DIR/$NAME.pid"
+JOB_FIFO_PATH="$DIR/$NAME.job.tmp"
+RESET_FIFO_PATH="$DIR/$NAME.seconds.tmp"
+LOG_FILE="$DIR/$NAME.log"
 LOG=
 
 # FUNCTIONS -----------------------------------------------------------------------------------------
@@ -246,7 +247,7 @@ for id in "${!job_seconds[@]}"; do
 <job_cmd><${job_cmds[$id]}>
 <fswatch_opt><${fswatch_opts[$id]}>
 <dev><${devs[$id]}>
-<sec><${job_seconds[$id]}><" &
+<sec><${job_seconds[$id]}>" &
 done
 
 rm -f $JOB_FIFO_PATH

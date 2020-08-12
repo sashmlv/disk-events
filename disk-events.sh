@@ -3,19 +3,12 @@
 # CLI FORMAT: sudo ./disk-events.sh set --label=<disk label> --path=<path> --timeout=<timeout> --command=<command> --fswatch=<fswatch options>
 
 NAME='disk-events'
-SOURCE_JOB_FILE="./$NAME-job.sh"
-TARGET_JOB_FILE="/home/$USER/bin/$NAME-job.sh"
-CONFIG_FILE="/home/$USER/bin/$NAME.conf"
+JOB_FILE="./$NAME-job.sh"
+CONFIG_FILE="./$NAME.conf"
+TMP_FILE='./$NAME.tmp'
 SERVICE_FILE="/etc/systemd/system/$NAME.service"
-TMP_FILE='/tmp/$NAME.tmp'
 
 # FUNCTIONS ----------------------------------------------------------------------------------------
-
-function clean_exit {
-
-   rm -f "$TMP_FILE"
-   exit
-}
 
 ids=()
 declare -A labels
@@ -40,7 +33,6 @@ function read_config {
    timeout=
    job_cmd=
    fswatch_opt=
-
 
    if [ ! -f "$CONFIG_FILE" ]; then
 
@@ -71,7 +63,7 @@ function read_config {
 
             printf 'Wrong line in the config:\n'
             printf '%s\n' "$line"
-            clean_exit
+            exit
          fi
       fi
    done < "$CONFIG_FILE"
@@ -297,7 +289,7 @@ if [ "$cli_cmd" == 'uninstall' ]; then
    systemctl stop "$NAME.service"
    systemctl disable "$NAME.service"
    systemctl daemon-reload
-   rm -f "$CONFIG_FILE" "$TARGET_JOB_FILE" "$SERVICE_FILE" "$TMP_FILE"
+   rm -f "$SERVICE_FILE"
    exit
 fi
 
@@ -317,11 +309,10 @@ if [ ! -f "$CONFIG_FILE" ]; then
    touch "$CONFIG_FILE"
 fi
 
-# add job file
-if [ ! -f "$TARGET_JOB_FILE" ]; then
+# fix job file
+if [ ! -f "JOB_FILE" ]; then
 
-   cp "$SOURCE_JOB_FILE" "$TARGET_JOB_FILE"
-   chmod +x "$TARGET_JOB_FILE"
+   chmod +x "$JOB_FILE"
 fi
 
 # add service for disk mount/unmount monitoring
@@ -331,7 +322,7 @@ if [ ! -f "$SERVICE_FILE" ]; then
 [Unit]
 
 [Service]
-ExecStart=$TARGET_JOB_FILE
+ExecStart=$JOB_FILE
 
 [Install]
 EOF
