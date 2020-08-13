@@ -21,11 +21,12 @@ declare -A fswatch_opts
 function read_config {
 
    CONFIG_RGX='^<[0-9]+><.+><.*><[0-9]+><.+><.*>$' # match config line
-   AWK_CUT_CONFIG_ID='match($0, /^<[0-9]+[^>]*>/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # id
-   AWK_CUT_CONFIG_LABEL='{ sub(/^<[0-9]+[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # disk label
-   AWK_CUT_CONFIG_PATH='{ sub(/^<[0-9]+[^>]*><[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # watch path
-   AWK_CUT_CONFIG_TIMEOUT='{ sub(/^<[0-9]+[^>]*><[^>]*><[^>]*></, "" )}; match($0, /^[0-9]+[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job timeout
-   AWK_CUT_CONFIG_COMMAND='{ sub(/^<[0-9]+[^>]*><[^>]*><[^>]*><[0-9]+></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job command
+
+   AWK_CUT_CONFIG_ID='match($0, /^<[0-9]+>/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # id
+   AWK_CUT_CONFIG_LABEL='{ sub(/^<[0-9]+></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # disk label
+   AWK_CUT_CONFIG_PATH='{ sub(/^<[0-9]+><[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # watch path
+   AWK_CUT_CONFIG_TIMEOUT='{ sub(/^<[0-9]+><[^>]*><[^>]*></, "" )}; match($0, /^[0-9]+[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job timeout
+   AWK_CUT_CONFIG_COMMAND='{ sub(/^<[0-9]+><[^>]*><[^>]*><[0-9]+></, "" ); sub(/><.*>$/, "" ); print $0 }' # job command
    AWK_CUT_CONFIG_FSWATCH='match($0, /<[^<]*>$/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # fswatch options
 
    id=
@@ -488,11 +489,11 @@ if [ "$cli_cmd" == 'unset' ]; then
    printf 'Enter record id: '
    read id
 
-   sed "/^<$id>/d" "$CONFIG_FILE" > "$TMP_FILE" 2> /dev/null || {
+   touch "$CONFIG_FILE" 2> /dev/null || {
       printf "Can't write config file, permission denied: %s\n" "$CONFIG_FILE"
       exit
    }
-
+   sed "/^<$id>/d" "$CONFIG_FILE" > "$TMP_FILE"
    mv -f "$TMP_FILE" "$CONFIG_FILE"
 
    systemctl daemon-reload
