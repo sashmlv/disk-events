@@ -5,11 +5,11 @@ DEFAULT_TIMEOUT=300
 BATCH_MARKER='------------'
 CONFIG_RGX='^<.+><[0-9]+><.+>$' # match config line
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-CONFIG_FILE="$DIR/$NAME.conf"
-PID_FILE="$DIR/$NAME.pid"
-JOB_FIFO_PATH="$DIR/$NAME.job.tmp"
-RESET_FIFO_PATH="$DIR/$NAME.seconds.tmp"
-LOG_FILE="$DIR/$NAME.log"
+CONFIG_FILE="$DIR/tmp/$NAME.conf"
+PID_FILE="$DIR/tmp/$NAME.pid"
+JOB_FIFO_PATH="$DIR/tmp/$NAME.job.tmp"
+RESET_FIFO_PATH="$DIR/tmp/$NAME.seconds.tmp"
+LOG_FILE="$DIR/tmp/$NAME.log"
 LOG=
 
 # FUNCTIONS -----------------------------------------------------------------------------------------
@@ -32,11 +32,11 @@ declare -A fswatch_opts
 function read_config {
 
    CONFIG_RGX='^<[0-9]+><.+><.*><[0-9]+><.+><.*>$' # match config line
-   AWK_CUT_CONFIG_ID='match($0, /^<[0-9]+[^>]*>/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # id
-   AWK_CUT_CONFIG_LABEL='{ sub(/^<[0-9]+[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # disk label
-   AWK_CUT_CONFIG_PATH='{ sub(/^<[0-9]+[^>]*><[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # watch path
-   AWK_CUT_CONFIG_TIMEOUT='{ sub(/^<[0-9]+[^>]*><[^>]*><[^>]*></, "" )}; match($0, /^[0-9]+[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job timeout
-   AWK_CUT_CONFIG_COMMAND='{ sub(/^<[0-9]+[^>]*><[^>]*><[^>]*><[0-9]+></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job command
+   AWK_CUT_CONFIG_ID='match($0, /^<[0-9]+>/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # id
+   AWK_CUT_CONFIG_LABEL='{ sub(/^<[0-9]+></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # disk label
+   AWK_CUT_CONFIG_PATH='{ sub(/^<[0-9]+><[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # watch path
+   AWK_CUT_CONFIG_TIMEOUT='{ sub(/^<[0-9]+><[^>]*><[^>]*></, "" )}; match($0, /^[0-9]+[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job timeout
+   AWK_CUT_CONFIG_COMMAND='{ sub(/^<[0-9]+><[^>]*><[^>]*><[0-9]+></, "" ); sub(/><.*>$/, "" ); print $0 }' # job command
    AWK_CUT_CONFIG_FSWATCH='match($0, /<[^<]*>$/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # fswatch options
    id=
    label=
@@ -92,6 +92,7 @@ function read_config {
 function job {
 
    declare -A args
+   local timeout=
    local key=
    local val=
 
@@ -113,7 +114,11 @@ function job {
       fi
    done <<< "$1"
 
-   for i in $(seq "${args['timeout']:-$DEFAULT_TIMEOUT}" -1 1); do
+   : ${timeout:="${args['sec']}"}
+   : ${timeout:="${args['timeout']}"}
+   : ${timeout:="$DEFAULT_TIMEOUT"}
+
+   for i in $(seq "$timeout" -1 1); do
 
       sleep 1
       echo "<${args['id']}><$i>" > $JOB_FIFO &
@@ -124,8 +129,7 @@ function job {
    if [ ! -z "${args['command']}" ]; then
 
       log '%s: Executing job whith id: %s\n' "$NAME" "${args['id']}"
-
-      eval "${args['command']}"
+      eval "${args['command']}" | tee -a "$LOG_FILE"
    fi
 }
 
@@ -196,7 +200,7 @@ fi
 
 # CHECK SCRIPT INSTANCE -----------------------------------------------------------------------------
 
-SED_CUT_KEY='s/^<\|><[^>]*>$//g'
+SED_CUT_KEY='s/^<\|>.\+$//g'
 SED_CUT_VAL='s/^<[^>]*><\|>$//g'
 declare -A job_seconds
 data_lines=()

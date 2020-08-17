@@ -5,8 +5,8 @@
 NAME='disk-events'
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 JOB_FILE="$DIR/$NAME-job.sh"
-CONFIG_FILE="./$NAME.conf"
-TMP_FILE="./$NAME.tmp"
+CONFIG_FILE="./tmp/$NAME.conf"
+TMP_FILE="./tmp/$NAME.tmp"
 SERVICE_FILE="/etc/systemd/system/$NAME.service"
 
 # FUNCTIONS ----------------------------------------------------------------------------------------
@@ -395,9 +395,9 @@ if [ "$cli_cmd" == 'set' ]; then
    done
 
    # add service lines
-   after="After=$mount_unit"
+   # bindsTo="BindsTo=$mount_unit"
    wantedBy="WantedBy=$mount_unit"
-   awk -v after="$after" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print after; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
+   # awk -v bindsTo="$bindsTo" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print bindsTo; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
    mv -f "$TMP_FILE" "$SERVICE_FILE" 2> /dev/null || {
       printf "Can't write service file, permission denied: %s\n" "$SERVICE_FILE"
       exit
