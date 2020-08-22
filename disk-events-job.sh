@@ -3,12 +3,12 @@
 NAME='disk-events'
 DEFAULT_TIMEOUT=300
 BATCH_MARKER='------------'
-CONFIG_RGX='^<.+><[0-9]+><.+>$' # match config line
+JOB_RGX='^<.+><[0-9]+><.+>$' # match job line
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-CONFIG_FILE="$DIR/tmp/$NAME.conf"
+JOBS_FILE="$DIR/tmp/$NAME.jobs"
 PID_FILE="$DIR/tmp/$NAME.pid"
 JOB_FIFO_PATH="$DIR/tmp/$NAME.job.tmp"
-RESET_FIFO_PATH="$DIR/tmp/$NAME.seconds.tmp"
+RESTART_FIFO_PATH="$DIR/tmp/$NAME.seconds.tmp"
 LOG_FILE="$DIR/tmp/$NAME.log"
 LOG=
 
@@ -29,15 +29,15 @@ declare -A timeouts
 declare -A job_cmds
 declare -A fswatch_opts
 
-function read_config {
+function read_jobs {
 
-   CONFIG_RGX='^<[0-9]+><.+><.*><[0-9]+><.+><.*>$' # match config line
-   AWK_CUT_CONFIG_ID='match($0, /^<[0-9]+>/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # id
-   AWK_CUT_CONFIG_LABEL='{ sub(/^<[0-9]+></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # disk label
-   AWK_CUT_CONFIG_PATH='{ sub(/^<[0-9]+><[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # watch path
-   AWK_CUT_CONFIG_TIMEOUT='{ sub(/^<[0-9]+><[^>]*><[^>]*></, "" )}; match($0, /^[0-9]+[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job timeout
-   AWK_CUT_CONFIG_COMMAND='{ sub(/^<[0-9]+><[^>]*><[^>]*><[0-9]+></, "" ); sub(/><.*>$/, "" ); print $0 }' # job command
-   AWK_CUT_CONFIG_FSWATCH='match($0, /<[^<]*>$/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # fswatch options
+   JOB_RGX='^<[0-9]+><.+><.*><[0-9]+><.+><.*>$' # match job line
+   AWK_CUT_JOB_ID='match($0, /^<[0-9]+>/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # id
+   AWK_CUT_JOB_LABEL='{ sub(/^<[0-9]+></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # disk label
+   AWK_CUT_JOB_PATH='{ sub(/^<[0-9]+><[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # watch path
+   AWK_CUT_JOB_TIMEOUT='{ sub(/^<[0-9]+><[^>]*><[^>]*></, "" )}; match($0, /^[0-9]+[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job timeout
+   AWK_CUT_JOB_COMMAND='{ sub(/^<[0-9]+><[^>]*><[^>]*><[0-9]+></, "" ); sub(/><.*>$/, "" ); print $0 }' # job command
+   AWK_CUT_JOB_FSWATCH='match($0, /<[^<]*>$/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # fswatch options
    id=
    label=
    path=
@@ -45,9 +45,9 @@ function read_config {
    job_cmd=
    fswatch_opt=
 
-   if [ ! -f "$CONFIG_FILE" ]; then
+   if [ ! -f "$JOBS_FILE" ]; then
 
-      log '%s: Config file not found\n' "$NAME"
+      log '%s: Job file not found\n' "$NAME"
       exit
    fi
 
@@ -55,14 +55,14 @@ function read_config {
 
       if [ ! -z "$line" ]; then
 
-         if [[ "$line" =~ $CONFIG_RGX ]]; then
+         if [[ "$line" =~ $JOB_RGX ]]; then
 
-            id=$(echo "$line" | awk "$AWK_CUT_CONFIG_ID")
-            label=$(echo "$line" | awk "$AWK_CUT_CONFIG_LABEL")
-            path=$(echo "$line" | awk "$AWK_CUT_CONFIG_PATH")
-            timeout=$(echo "$line" | awk "$AWK_CUT_CONFIG_TIMEOUT")
-            job_cmd=$(echo "$line" | awk "$AWK_CUT_CONFIG_COMMAND")
-            fswatch_opt=$(echo "$line" | awk "$AWK_CUT_CONFIG_FSWATCH")
+            id=$(echo "$line" | awk "$AWK_CUT_JOB_ID")
+            label=$(echo "$line" | awk "$AWK_CUT_JOB_LABEL")
+            path=$(echo "$line" | awk "$AWK_CUT_JOB_PATH")
+            timeout=$(echo "$line" | awk "$AWK_CUT_JOB_TIMEOUT")
+            job_cmd=$(echo "$line" | awk "$AWK_CUT_JOB_COMMAND")
+            fswatch_opt=$(echo "$line" | awk "$AWK_CUT_JOB_FSWATCH")
 
             ids+=("$id")
             labels["$id"]="$label"
@@ -73,20 +73,20 @@ function read_config {
 
          else
 
-            log '%s: Wrong line in the config:\n' "$NAME"
+            log '%s: Wrong line in the jobs file:\n' "$NAME"
             log '%s: %s\n' "$NAME" "$line"
             exit
          fi
       fi
-   done < "$CONFIG_FILE"
+   done < "$JOBS_FILE"
 
    if [[ "${#ids[@]}" -eq 0 ]]; then
 
-      log '%s: There are no config data\n' "$NAME"
+      log '%s: There are no job data\n' "$NAME"
       exit
    fi
 
-   log '%s: Read config success: %s\n' "$NAME" "$CONFIG_FILE"
+   log '%s: Read jobs success: %s\n' "$NAME" "$JOBS_FILE"
 }
 
 function job {
@@ -110,7 +110,7 @@ function job {
       elif [ "$key" == 'dev' ]; then args['dev']="$val";
       elif [ "$key" == 'sec' ]; then
          args['sec']="$val"
-         job_seconds["${args['id']}"]="$val"
+         # job_seconds["${args['id']}"]="$val"
       fi
    done <<< "$1"
 
@@ -128,8 +128,14 @@ function job {
 
    if [ ! -z "${args['command']}" ]; then
 
-      log '%s: Executing job whith id: %s\n' "$NAME" "${args['id']}"
-      eval "${args['command']}" | tee -a "$LOG_FILE"
+      if [ ! -z "${args['path']}" ] && { [ -d "${args['path']}" ] || [ -f "${args['path']}" ]; }; then
+
+         log '%s: Executing job whith id: %s\n' "$NAME" "${args['id']}"
+         eval "${args['command']}" | tee -a "$LOG_FILE"
+      else
+
+         log '%s: Can'\''t execute job whith id: %s, path not found: %s\n' "$NAME" "${args['id']}" "${args['path']}"
+      fi
    fi
 }
 
@@ -146,14 +152,14 @@ if [ ! -z "$*" ]; then
    if [[ ! "$cli_log" =~ ^(true|false)$ ]]; then
 
       cli_log=
-      log '%s: Bad "--log" value, allowed: true or false\n' "$NAME"
+      printf '%s: Bad "--log" value, allowed: true or false\n' "$NAME" | tee -a "$LOG_FILE"
    fi
    LOG="$cli_log"
 fi
 
 # GET MOUNT POINTS, DEVS, OPTS, ... -----------------------------------------------------------------
 
-read_config
+read_jobs
 
 declare -A devs
 declare -A watch_paths
@@ -210,9 +216,9 @@ tmpstr=
 if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
 
    JOB_FIFO=$JOB_FIFO_PATH
-   RESET_FIFO=$RESET_FIFO_PATH
+   RESTART_FIFO=$RESTART_FIFO_PATH
 
-   exec 3<>$RESET_FIFO
+   exec 3<>$RESTART_FIFO
 
    echo 'restart' > $JOB_FIFO &
 
@@ -239,7 +245,7 @@ if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
    log '%s: Previous jobs started\n' "$NAME"
 fi
 
-# START PREVIOUS JOB IF EXISTS ----------------------------------------------------------------------
+# START PREVIOUS JOBS IF EXISTS ---------------------------------------------------------------------
 
 # keep previous process if have data
 for id in "${!job_seconds[@]}"; do
@@ -258,9 +264,9 @@ rm -f $JOB_FIFO_PATH
 JOB_FIFO=$JOB_FIFO_PATH
 mkfifo -m 600 "$JOB_FIFO"
 
-rm -f $RESET_FIFO_PATH
-RESET_FIFO=$RESET_FIFO_PATH
-mkfifo -m 600 "$RESET_FIFO"
+rm -f $RESTART_FIFO_PATH
+RESTART_FIFO=$RESTART_FIFO_PATH
+mkfifo -m 600 "$RESTART_FIFO"
 
 echo "$$" > "$PID_FILE"
 
@@ -289,7 +295,7 @@ while read access_path; do
    fi
 done < <(fswatch --batch-marker="$BATCH_MARKER" "${watch_opts[@]}" "${watch_paths[@]}") &
 
-log "%s: Watching: %s\n" "$NAME" "${watch_paths[@]}"
+log "%s: %s\n" "$NAME" "Watching: $(echo ${watch_paths[@]})"
 
 declare -A job_pids
 id=
@@ -298,7 +304,7 @@ sec=
 # read and handle access events data
 while read line < $JOB_FIFO; do
 
-   if [[ " ${!watch_paths[@]} " =~ " ${line} " ]]; then
+   if [[ " ${!watch_paths[@]} " =~ " ${line} " ]]; then # reset timers after path thouch
 
       id="$line"
       kill "${job_pids[$id]}" 2>/dev/null;
@@ -311,14 +317,14 @@ while read line < $JOB_FIFO; do
 <dev><${devs[$id]}>" &
       job_pids["$id"]="$!"
 
-   elif [ "$line" == 'restart' ]; then
+    elif [ "$line" == 'restart' ]; then
 
       for id in "${!job_seconds[@]}"; do
 
          tmpstr+="<$id><${job_seconds[$id]}><>"
       done
 
-      echo "$tmpstr" > $RESET_FIFO &
+      echo "$tmpstr" > $RESTART_FIFO &
       tmpstr=''
    else
 
@@ -327,4 +333,4 @@ while read line < $JOB_FIFO; do
       sec=$(echo "$line" | sed "$SED_CUT_VAL")
       job_seconds["$id"]="$sec"
    fi
-done
+done &

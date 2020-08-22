@@ -5,7 +5,7 @@
 NAME='disk-events'
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 JOB_FILE="$DIR/$NAME-job.sh"
-CONFIG_FILE="./tmp/$NAME.conf"
+JOBS_FILE="./tmp/$NAME.jobs"
 TMP_FILE="./tmp/$NAME.tmp"
 SERVICE_FILE="/etc/systemd/system/$NAME.service"
 
@@ -18,16 +18,16 @@ declare -A timeouts
 declare -A job_cmds
 declare -A fswatch_opts
 
-function read_config {
+function read_jobs {
 
-   CONFIG_RGX='^<[0-9]+><.+><.*><[0-9]+><.+><.*>$' # match config line
+   JOB_RGX='^<[0-9]+><.+><.*><[0-9]+><.+><.*>$' # match job line
 
-   AWK_CUT_CONFIG_ID='match($0, /^<[0-9]+>/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # id
-   AWK_CUT_CONFIG_LABEL='{ sub(/^<[0-9]+></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # disk label
-   AWK_CUT_CONFIG_PATH='{ sub(/^<[0-9]+><[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # watch path
-   AWK_CUT_CONFIG_TIMEOUT='{ sub(/^<[0-9]+><[^>]*><[^>]*></, "" )}; match($0, /^[0-9]+[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job timeout
-   AWK_CUT_CONFIG_COMMAND='{ sub(/^<[0-9]+><[^>]*><[^>]*><[0-9]+></, "" ); sub(/><.*>$/, "" ); print $0 }' # job command
-   AWK_CUT_CONFIG_FSWATCH='match($0, /<[^<]*>$/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # fswatch options
+   AWK_CUT_JOB_ID='match($0, /^<[0-9]+>/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # id
+   AWK_CUT_JOB_LABEL='{ sub(/^<[0-9]+></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # disk label
+   AWK_CUT_JOB_PATH='{ sub(/^<[0-9]+><[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # watch path
+   AWK_CUT_JOB_TIMEOUT='{ sub(/^<[0-9]+><[^>]*><[^>]*></, "" )}; match($0, /^[0-9]+[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job timeout
+   AWK_CUT_JOB_COMMAND='{ sub(/^<[0-9]+><[^>]*><[^>]*><[0-9]+></, "" ); sub(/><.*>$/, "" ); print $0 }' # job command
+   AWK_CUT_JOB_FSWATCH='match($0, /<[^<]*>$/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # fswatch options
 
    id=
    label=
@@ -36,9 +36,9 @@ function read_config {
    job_cmd=
    fswatch_opt=
 
-   if [ ! -f "$CONFIG_FILE" ]; then
+   if [ ! -f "$JOBS_FILE" ]; then
 
-      printf 'Config file not found\n'
+      printf 'Job file not found\n'
       exit
    fi
 
@@ -46,14 +46,14 @@ function read_config {
 
       if [ ! -z "$line" ]; then
 
-         if [[ "$line" =~ $CONFIG_RGX ]]; then
+         if [[ "$line" =~ $JOB_RGX ]]; then
 
-            id=$(echo "$line" | awk "$AWK_CUT_CONFIG_ID")
-            label=$(echo "$line" | awk "$AWK_CUT_CONFIG_LABEL")
-            path=$(echo "$line" | awk "$AWK_CUT_CONFIG_PATH")
-            timeout=$(echo "$line" | awk "$AWK_CUT_CONFIG_TIMEOUT")
-            job_cmd=$(echo "$line" | awk "$AWK_CUT_CONFIG_COMMAND")
-            fswatch_opt=$(echo "$line" | awk "$AWK_CUT_CONFIG_FSWATCH")
+            id=$(echo "$line" | awk "$AWK_CUT_JOB_ID")
+            label=$(echo "$line" | awk "$AWK_CUT_JOB_LABEL")
+            path=$(echo "$line" | awk "$AWK_CUT_JOB_PATH")
+            timeout=$(echo "$line" | awk "$AWK_CUT_JOB_TIMEOUT")
+            job_cmd=$(echo "$line" | awk "$AWK_CUT_JOB_COMMAND")
+            fswatch_opt=$(echo "$line" | awk "$AWK_CUT_JOB_FSWATCH")
 
             ids+=("$id")
             labels["$id"]="$label"
@@ -63,17 +63,17 @@ function read_config {
             fswatch_opts["$id"]="$fswatch_opt"
          else
 
-            printf 'Wrong line in the config:\n'
+            printf 'Wrong line in the jobs file:\n'
             printf '%s\n' "$line"
             exit
          fi
       fi
-   done < "$CONFIG_FILE"
+   done < "$JOBS_FILE"
 }
 
-function print_config {
+function print_jobs {
 
-   read_config
+   read_jobs
 
    id_title='id'
    label_title='label'
@@ -263,7 +263,7 @@ if [ -z "$cli_cmd" ] || [[ ! " ${COMMANDS[@]} " =~ " ${cli_cmd} " ]]; then
    echo 'Select command: '
    echo '1. set disk'
    echo '2. unset disk'
-   echo '3. print config'
+   echo '3. print jobs'
    echo '4. uninstall'
    echo '5. quit'
    read cli_cmd
@@ -295,23 +295,23 @@ if [ "$cli_cmd" == 'uninstall' ]; then
    exit
 fi
 
-# PRINT CONFIG --------------------------------------------------------------------------------------
+# PRINT JOBS ----------------------------------------------------------------------------------------
 
 if [ "$cli_cmd" == 'print' ]; then
 
-   print_config
+   print_jobs
    exit
 fi
 
 # INSTALL -------------------------------------------------------------------------------------------
 
-# add config file
-if [ ! -f "$CONFIG_FILE" ]; then
+# add jobs file
+if [ ! -f "$JOBS_FILE" ]; then
 
-   touch "$CONFIG_FILE"
+   touch "$JOBS_FILE"
 fi
 
-# fix job file
+# fix jobs file
 if [ ! -f "JOB_FILE" ]; then
 
    chmod +x "$JOB_FILE"
@@ -329,6 +329,7 @@ if [ ! -f "$SERVICE_FILE" ]; then
 [Unit]
 
 [Service]
+KillMode=process
 ExecStart=$JOB_FILE --log=true
 
 [Install]
@@ -339,7 +340,7 @@ fi
 
 if [ "$cli_cmd" == 'set' ]; then
 
-   read_config
+   read_jobs
 
    NUM_RGX='^[0-9]+$'
    UNSAFE_RGX="[\0\`\\\/:\;\*\"\'\<\>\|\.\,]" # UNSAFE SYMBOLS: \0 ` \ / : ; * " ' < > | . ,
@@ -395,9 +396,9 @@ if [ "$cli_cmd" == 'set' ]; then
    done
 
    # add service lines
-   # bindsTo="BindsTo=$mount_unit"
+   conditionPathIsMountPoint="ConditionPathIsMountPoint=|$mount_point"
    wantedBy="WantedBy=$mount_unit"
-   # awk -v bindsTo="$bindsTo" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print bindsTo; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
+   awk -v conditionPathIsMountPoint="$conditionPathIsMountPoint" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print conditionPathIsMountPoint; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
    mv -f "$TMP_FILE" "$SERVICE_FILE" 2> /dev/null || {
       printf "Can't write service file, permission denied: %s\n" "$SERVICE_FILE"
       exit
@@ -455,9 +456,9 @@ if [ "$cli_cmd" == 'set' ]; then
          exit
       fi
 
-   done < "$CONFIG_FILE"
+   done < "$JOBS_FILE"
 
-   cat /dev/null > "$CONFIG_FILE"
+   cat /dev/null > "$JOBS_FILE"
    cat /dev/null > "$TMP_FILE"
 
    for id in "${ids[@]}"; do
@@ -465,7 +466,7 @@ if [ "$cli_cmd" == 'set' ]; then
       echo "<$id><${labels[$id]}><${paths[$id]}><${timeouts[$id]}><${job_cmds[$id]}><${fswatch_opts[$id]}>" >> "$TMP_FILE"
    done
 
-   sed '/^$/d' "$TMP_FILE" > "$CONFIG_FILE" # remove empty lines
+   sed '/^$/d' "$TMP_FILE" > "$JOBS_FILE" # remove empty lines
 
    # restart service
    systemctl enable "$NAME.service"
@@ -484,17 +485,17 @@ fi
 
 if [ "$cli_cmd" == 'unset' ]; then
 
-   print_config
+   print_jobs
 
    printf 'Enter record id: '
    read id
 
-   touch "$CONFIG_FILE" 2> /dev/null || {
-      printf "Can't write config file, permission denied: %s\n" "$CONFIG_FILE"
+   touch "$JOBS_FILE" 2> /dev/null || {
+      printf "Can't write job file, permission denied: %s\n" "$JOBS_FILE"
       exit
    }
-   sed "/^<$id>/d" "$CONFIG_FILE" > "$TMP_FILE"
-   mv -f "$TMP_FILE" "$CONFIG_FILE"
+   sed "/^<$id>/d" "$JOBS_FILE" > "$TMP_FILE"
+   mv -f "$TMP_FILE" "$JOBS_FILE"
 
    systemctl daemon-reload
 
