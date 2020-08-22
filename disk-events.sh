@@ -38,7 +38,7 @@ function read_jobs {
 
    if [ ! -f "$JOBS_FILE" ]; then
 
-      printf 'Job file not found\n'
+      printf 'Jobs file not found\n'
       exit
    fi
 
@@ -241,17 +241,26 @@ if [ ! -z "$cli_cmd" ]; then shift; fi
 
 if [ ! -z "$*" ]; then
 
-   AWK_CUT_ARG_LABEL='match($0, /(--label\ |--label=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--label\ |--label=)|\ $/, "", str); print str }'
-   AWK_CUT_ARG_PATH='match($0, /(--path\ |--path=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--path\ |--path=)|\ $/, "", str); print str }'
-   AWK_CUT_ARG_TIMEOUT='match($0, /(--timeout\ |--timeout=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--timeout\ |--timeout=)|\ $/, "", str); print str }'
-   AWK_CUT_ARG_COMMAND='match($0, /(--command\ |--command=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--command\ |--command=)|\ $/, "", str); print str }'
-   AWK_CUT_ARG_FSWATCH='match($0, /(--fswatch\ |--fswatch=)[\47"].+[\47"]/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--fswatch\ |--fswatch=)[\47|"]|[\47|"]$/, "", str); print str }'
+   var_name=
 
-   cli_label=$(echo "$*" | awk "$AWK_CUT_ARG_LABEL")
-   cli_path=$(echo "$*" | awk "$AWK_CUT_ARG_PATH")
-   cli_timeout=$(echo "$*" | awk "$AWK_CUT_ARG_TIMEOUT")
-   cli_job_cmd=$(echo "$*" | awk "$AWK_CUT_ARG_COMMAND")
-   cli_fswatch_opt=$(echo "$*" | awk "$AWK_CUT_ARG_FSWATCH")
+   # parse cli arguments into cli variables
+   while [ ! -z "$*" ]; do
+      case $1 in
+         --label|--label=) var_name='cli_label';shift;;
+         --path|--path=) var_name='cli_path';shift;;
+         --timeout|--timeout=) var_name='cli_timeout';shift;;
+         --command|--command=) var_name='cli_job_cmd';shift;;
+         --fswatch|--fswatch=) var_name='cli_fswatch_opt';shift;;
+         *) declare "$var_name"+="$1 ";shift;;
+      esac
+   done
+
+   # remove last space previous added
+   if [ ! -z "$cli_label" ]; then cli_label=$(echo "$cli_label" | sed 's/\s$//'); fi
+   if [ ! -z "$cli_path" ]; then cli_path=$(echo "$cli_path" | sed 's/\s$//'); fi
+   if [ ! -z "$cli_timeout" ]; then cli_timeout=$(echo "$cli_timeout" | sed 's/\s$//'); fi
+   if [ ! -z "$cli_job_cmd" ]; then cli_job_cmd=$(echo "$cli_job_cmd" | sed 's/\s$//'); fi
+   if [ ! -z "$cli_fswatch_opt" ]; then cli_fswatch_opt=$(echo "$cli_fswatch_opt" | sed 's/\s$//'); fi
 fi
 
 # COMMAND -------------------------------------------------------------------------------------------
