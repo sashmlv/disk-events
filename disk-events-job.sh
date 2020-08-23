@@ -128,13 +128,13 @@ function job {
 
    if [ ! -z "${args['command']}" ]; then
 
-      if [ ! -z "${args['path']}" ] && { [ -d "${args['path']}" ] || [ -f "${args['path']}" ]; }; then
+      if [ -d "${watch_paths[${args['id']}]}" ] || [ -f "${watch_paths[${args['id']}]}" ]; then
 
          log '%s: Executing job whith id: %s\n' "$NAME" "${args['id']}"
          eval "${args['command']}" | tee -a "$LOG_FILE"
       else
 
-         log '%s: Can'\''t execute job whith id: %s, path not found: %s\n' "$NAME" "${args['id']}" "${args['path']}"
+         log '%s: Can'\''t execute job whith id: %s, path not found: %s\n' "$NAME" "${args['id']}" "${watch_paths[${args['id']}]}"
       fi
    fi
 }

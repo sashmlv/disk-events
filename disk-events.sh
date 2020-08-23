@@ -255,7 +255,7 @@ if [ ! -z "$*" ]; then
       esac
    done
 
-   # remove last space previous added
+   # remove last space added abowe
    if [ ! -z "$cli_label" ]; then cli_label=$(echo "$cli_label" | sed 's/\s$//'); fi
    if [ ! -z "$cli_path" ]; then cli_path=$(echo "$cli_path" | sed 's/\s$//'); fi
    if [ ! -z "$cli_timeout" ]; then cli_timeout=$(echo "$cli_timeout" | sed 's/\s$//'); fi
