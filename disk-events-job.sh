@@ -1,143 +1,31 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-NAME='disk-events'
-DEFAULT_TIMEOUT=300
-BATCH_MARKER='------------'
-JOB_RGX='^<.+><[0-9]+><.+>$' # match job line
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-JOBS_FILE="$DIR/tmp/$NAME.jobs"
-PID_FILE="$DIR/tmp/$NAME.pid"
-JOB_FIFO_PATH="$DIR/tmp/$NAME.job.tmp"
-RESTART_FIFO_PATH="$DIR/tmp/$NAME.seconds.tmp"
-LOG_FILE="$DIR/tmp/$NAME.log"
+readonly NAME='disk-events'
+readonly DEFAULT_TIMEOUT=300
+readonly BATCH_MARKER='------------'
+readonly JOB_RGX='^<.+><[0-9]+><.+>$' # match job line
+readonly DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+readonly JOBS_FILE="$DIR/tmp/$NAME.jobs"
+readonly PID_FILE="$DIR/tmp/$NAME.pid"
+readonly JOB_FIFO_PATH="$DIR/tmp/$NAME.job.tmp"
+readonly RESTART_FIFO_PATH="$DIR/tmp/$NAME.seconds.tmp"
+readonly LOG_FILE="$DIR/tmp/$NAME.log"
 LOG=
 
 # FUNCTIONS -----------------------------------------------------------------------------------------
 
-function log {
+source "${DIR}/lib/log.sh"
+source "${DIR}/lib/read_jobs.sh"
 
-   if [ "$LOG" == "true" ]; then
+if [[ "${#ids[@]}" -eq 0 ]]; then
 
-      printf "$@" | tee -a "$LOG_FILE"
-   fi
-}
+   log '%s: There are no job data\n' "$NAME"
+   exit
+fi
 
-ids=()
-declare -A labels
-declare -A paths
-declare -A timeouts
-declare -A job_cmds
-declare -A fswatch_opts
+log '%s: Read jobs success: %s\n' "$NAME" "$JOBS_FILE"
 
-function read_jobs {
-
-   JOB_RGX='^<[0-9]+><.+><.*><[0-9]+><.+><.*>$' # match job line
-   AWK_CUT_JOB_ID='match($0, /^<[0-9]+>/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # id
-   AWK_CUT_JOB_LABEL='{ sub(/^<[0-9]+></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # disk label
-   AWK_CUT_JOB_PATH='{ sub(/^<[0-9]+><[^>]*></, "" )}; match($0, /^[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # watch path
-   AWK_CUT_JOB_TIMEOUT='{ sub(/^<[0-9]+><[^>]*><[^>]*></, "" )}; match($0, /^[0-9]+[^>]*/ ) { str=substr($0, RSTART, RLENGTH); print str }' # job timeout
-   AWK_CUT_JOB_COMMAND='{ sub(/^<[0-9]+><[^>]*><[^>]*><[0-9]+></, "" ); sub(/><.*>$/, "" ); print $0 }' # job command
-   AWK_CUT_JOB_FSWATCH='match($0, /<[^<]*>$/) { str=substr($0, RSTART, RLENGTH); gsub( /<|>/, "", str ); print str }' # fswatch options
-   id=
-   label=
-   path=
-   timeout=
-   job_cmd=
-   fswatch_opt=
-
-   if [ ! -f "$JOBS_FILE" ]; then
-
-      log '%s: Job file not found\n' "$NAME"
-      exit
-   fi
-
-   while read line; do
-
-      if [ ! -z "$line" ]; then
-
-         if [[ "$line" =~ $JOB_RGX ]]; then
-
-            id=$(echo "$line" | awk "$AWK_CUT_JOB_ID")
-            label=$(echo "$line" | awk "$AWK_CUT_JOB_LABEL")
-            path=$(echo "$line" | awk "$AWK_CUT_JOB_PATH")
-            timeout=$(echo "$line" | awk "$AWK_CUT_JOB_TIMEOUT")
-            job_cmd=$(echo "$line" | awk "$AWK_CUT_JOB_COMMAND")
-            fswatch_opt=$(echo "$line" | awk "$AWK_CUT_JOB_FSWATCH")
-
-            ids+=("$id")
-            labels["$id"]="$label"
-            paths["$id"]="$path"
-            timeouts["$id"]="$timeout"
-            job_cmds["$id"]="$job_cmd"
-            fswatch_opts["$id"]="$fswatch_opt"
-
-         else
-
-            log '%s: Wrong line in the jobs file:\n' "$NAME"
-            log '%s: %s\n' "$NAME" "$line"
-            exit
-         fi
-      fi
-   done < "$JOBS_FILE"
-
-   if [[ "${#ids[@]}" -eq 0 ]]; then
-
-      log '%s: There are no job data\n' "$NAME"
-      exit
-   fi
-
-   log '%s: Read jobs success: %s\n' "$NAME" "$JOBS_FILE"
-}
-
-function job {
-
-   declare -A args
-   local timeout=
-   local key=
-   local val=
-
-   while IFS= read line; do
-
-      key=$(echo "$line" | sed "$SED_CUT_KEY")
-      val=$(echo "$line" | sed "$SED_CUT_VAL")
-
-      if [ "$key" == 'id' ]; then args['id']="$val";
-      elif [ "$key" == 'label' ]; then args['label']="$val";
-      elif [ "$key" == 'path' ]; then args['path']="$val";
-      elif [ "$key" == 'timeout' ]; then args['timeout']="$val";
-      elif [ "$key" == 'job_cmd' ]; then args['command']="$val";
-      elif [ "$key" == 'fswatch_opt' ]; then args['fswatch_opts']="$val";
-      elif [ "$key" == 'dev' ]; then args['dev']="$val";
-      elif [ "$key" == 'sec' ]; then
-         args['sec']="$val"
-         # job_seconds["${args['id']}"]="$val"
-      fi
-   done <<< "$1"
-
-   : ${timeout:="${args['sec']}"}
-   : ${timeout:="${args['timeout']}"}
-   : ${timeout:="$DEFAULT_TIMEOUT"}
-
-   for i in $(seq "$timeout" -1 1); do
-
-      sleep 1
-      echo "<${args['id']}><$i>" > $JOB_FIFO &
-
-      log '%s: Job id: %s, seconds: %s\n' "$NAME" "${args['id']}" "$i"
-   done
-
-   if [ ! -z "${args['command']}" ]; then
-
-      if [ -d "${watch_paths[${args['id']}]}" ] || [ -f "${watch_paths[${args['id']}]}" ]; then
-
-         log '%s: Executing job whith id: %s\n' "$NAME" "${args['id']}"
-         eval "${args['command']}" | tee -a "$LOG_FILE"
-      else
-
-         log '%s: Can'\''t execute job whith id: %s, path not found: %s\n' "$NAME" "${args['id']}" "${watch_paths[${args['id']}]}"
-      fi
-   fi
-}
+source "${DIR}/lib/job.sh"
 
 # CLI ARGUMENTS -------------------------------------------------------------------------------------
 
@@ -145,7 +33,7 @@ cli_log=
 
 if [ ! -z "$*" ]; then
 
-   AWK_CUT_ARG_LOG='match($0, /(--log\ |--log=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--log\ |--log=)|\ $/, "", str); print str }'
+   readonly AWK_CUT_ARG_LOG='match($0, /(--log\ |--log=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--log\ |--log=)|\ $/, "", str); print str }'
 
    cli_log=$(echo "$*" | awk "$AWK_CUT_ARG_LOG")
 
@@ -161,176 +49,8 @@ fi
 
 read_jobs
 
-declare -A devs
-declare -A watch_paths
-watch_opts=()
-mount_point=
-path=
+source "${DIR}/lib/get_data.sh"
 
-SED_CUT_DEV='s/^PKNAME="\|"\sLABEL.\+//g' # cut dev
-SED_CUT_MOUNT='s/.\+MOUNTPOINT="\|\"$//g' # cut mount
+# HANDLE EVENTS -------------------------------------------------------------------------------------
 
-while read line; do
-
-   for id in "${ids[@]}"; do
-
-      if [[ "$line" =~ "${labels[$id]}" ]]; then
-
-         devs["$id"]=$(echo "$line" | sed "$SED_CUT_DEV")
-         mount_point=$(echo "$line" | sed "$SED_CUT_MOUNT")
-         path=$(echo "${paths[$id]}" | sed 's/^\(\.\/\|\/\)//')
-
-
-         if [ ! -z "$path" ]; then
-
-            watch_path="$mount_point/$path"
-         else
-
-            watch_path="$mount_point"
-         fi
-
-         if [ ! -z "$watch_path" ] && { [ -d "$watch_path" ] || [ -f "$watch_path" ]; }; then
-
-            watch_paths["$id"]="$watch_path"
-            watch_opts+=("${fswatch_opts[$id]}")
-         fi
-      fi
-   done
-done < <(lsblk -Ppo pkname,label,mountpoint)
-
-if [[ "${#watch_paths[@]}" -eq 0 ]]; then
-
-   log '%s: No path found for watching\n' "$NAME"
-   exit
-fi
-
-# CHECK SCRIPT INSTANCE -----------------------------------------------------------------------------
-
-SED_CUT_KEY='s/^<\|>.\+$//g'
-SED_CUT_VAL='s/^<[^>]*><\|>$//g'
-declare -A job_seconds
-data_lines=()
-tmpstr=
-
-# replace this process with new other one with params
-if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
-
-   JOB_FIFO=$JOB_FIFO_PATH
-   RESTART_FIFO=$RESTART_FIFO_PATH
-
-   exec 3<>$RESTART_FIFO
-
-   echo 'restart' > $JOB_FIFO &
-
-   log '%s: Starting previous jobs\n' "$NAME"
-
-   # remember previous timers state
-   while read -t 0.01 line <& 3; do tmpstr="$line"; done
-
-   IFS=$'\n';
-   data_lines=($(echo "$tmpstr" | sed 's/<>/\n/g'))
-
-   for line in "${data_lines[@]}"; do
-
-      id=$(echo "$line" | sed "$SED_CUT_KEY")
-      sec=$(echo "$line" | sed "$SED_CUT_VAL")
-
-      job_seconds["$id"]="$sec"
-   done
-
-   PREVIOUS_PID=$(cat 2>/dev/null "$PID_FILE")
-   kill -- -"$PREVIOUS_PID"
-   tmpstr=''
-
-   log '%s: Previous jobs started\n' "$NAME"
-fi
-
-# START PREVIOUS JOBS IF EXISTS ---------------------------------------------------------------------
-
-# keep previous process if have data
-for id in "${!job_seconds[@]}"; do
-
-   job "<id><$id>
-<label><${labels[$id]}>
-<path><${paths[$id]}>
-<timeout><${timeouts[$id]}>
-<job_cmd><${job_cmds[$id]}>
-<fswatch_opt><${fswatch_opts[$id]}>
-<dev><${devs[$id]}>
-<sec><${job_seconds[$id]}>" &
-done
-
-rm -f $JOB_FIFO_PATH
-JOB_FIFO=$JOB_FIFO_PATH
-mkfifo -m 600 "$JOB_FIFO"
-
-rm -f $RESTART_FIFO_PATH
-RESTART_FIFO=$RESTART_FIFO_PATH
-mkfifo -m 600 "$RESTART_FIFO"
-
-echo "$$" > "$PID_FILE"
-
-log '%s: Running process with PID: %s\n' "$NAME" "$$"
-
-# JOB -----------------------------------------------------------------------------------------------
-
-current_id=
-
-# watch disk access events, and write them
-while read access_path; do
-
-   for id in "${!watch_paths[@]}"; do
-
-      if [[ "$access_path" =~ "${watch_paths[$id]}" ]]; then
-
-         current_id="$id"
-      fi
-   done
-
-   if [ "$access_path" == "$BATCH_MARKER" ]; then
-
-      echo "$current_id" > $JOB_FIFO &
-
-      log '%s: Event for id: %s\n' "$NAME" "$id"
-   fi
-done < <(fswatch --batch-marker="$BATCH_MARKER" "${watch_opts[@]}" "${watch_paths[@]}") &
-
-log "%s: %s\n" "$NAME" "Watching: $(echo ${watch_paths[@]})"
-
-declare -A job_pids
-id=
-sec=
-
-# read and handle access events data
-while read line < $JOB_FIFO; do
-
-   if [[ " ${!watch_paths[@]} " =~ " ${line} " ]]; then # reset timers after path thouch
-
-      id="$line"
-      kill "${job_pids[$id]}" 2>/dev/null;
-      job "<id><$id>
-<label><${labels[$id]}>
-<path><${paths[$id]}>
-<timeout><${timeouts[$id]}>
-<job_cmd><${job_cmds[$id]}>
-<fswatch_opt><${fswatch_opts[$id]}>
-<dev><${devs[$id]}>" &
-      job_pids["$id"]="$!"
-
-    elif [ "$line" == 'restart' ]; then
-
-      for id in "${!job_seconds[@]}"; do
-
-         tmpstr+="<$id><${job_seconds[$id]}><>"
-      done
-
-      echo "$tmpstr" > $RESTART_FIFO &
-      tmpstr=''
-   else
-
-      # remember current timers state
-      id=$(echo "$line" | sed "$SED_CUT_KEY")
-      sec=$(echo "$line" | sed "$SED_CUT_VAL")
-      job_seconds["$id"]="$sec"
-   fi
-done &
+source "${DIR}/lib/events-handler.sh"
