@@ -3,7 +3,6 @@
 readonly NAME='disk-events'
 readonly DEFAULT_TIMEOUT=300
 readonly BATCH_MARKER='------------'
-readonly JOB_RGX='^<.+><[0-9]+><.+>$' # match job line
 readonly DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 readonly JOBS_FILE="$DIR/tmp/$NAME.jobs"
 readonly PID_FILE="$DIR/tmp/$NAME.pid"
@@ -11,21 +10,6 @@ readonly JOB_FIFO_PATH="$DIR/tmp/$NAME.job.tmp"
 readonly RESTART_FIFO_PATH="$DIR/tmp/$NAME.seconds.tmp"
 readonly LOG_FILE="$DIR/tmp/$NAME.log"
 LOG=
-
-# FUNCTIONS -----------------------------------------------------------------------------------------
-
-source "${DIR}/lib/log.sh"
-source "${DIR}/lib/read_jobs.sh"
-
-if [[ "${#ids[@]}" -eq 0 ]]; then
-
-   log '%s: There are no job data\n' "$NAME"
-   exit
-fi
-
-log '%s: Read jobs success: %s\n' "$NAME" "$JOBS_FILE"
-
-source "${DIR}/lib/job.sh"
 
 # CLI ARGUMENTS -------------------------------------------------------------------------------------
 
@@ -45,9 +29,24 @@ if [ ! -z "$*" ]; then
    LOG="$cli_log"
 fi
 
-# GET MOUNT POINTS, DEVS, OPTS, ... -----------------------------------------------------------------
+# FUNCTIONS -----------------------------------------------------------------------------------------
+
+source "${DIR}/lib/log.sh"
+source "${DIR}/lib/read_jobs.sh"
 
 read_jobs
+
+if [[ "${#ids[@]}" -eq 0 ]]; then
+
+   log '%s: There are no job data\n' "$NAME"
+   exit
+fi
+
+log '%s: Read jobs success: %s\n' "$NAME" "$JOBS_FILE"
+
+source "${DIR}/lib/job.sh"
+
+# GET MOUNT POINTS, DEVS, OPTS, ... -----------------------------------------------------------------
 
 source "${DIR}/lib/get_data.sh"
 
