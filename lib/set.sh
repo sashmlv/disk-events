@@ -101,8 +101,17 @@ if [ "$cli_cmd" == 'set' ]; then
       read cli_fswatch_opt
    fi
 
-   readonly cli_id=$(("${#ids[@]}"+1))
-   ids+=("$cli_id")
+   last_id=0
+   : ${last_id:="${ids[0]}"}
+   for n in "${ids[@]}" ; do
+
+      ((n > last_id)) && last_id=$n
+   done
+
+   ((last_id++))
+
+   cli_id="$last_id"
+   ids+=("$last_id")
    labels["$cli_id"]="$cli_label"
    paths["$cli_id"]="$cli_path"
    timeouts["$cli_id"]="$cli_timeout"
