@@ -9,7 +9,7 @@ set -o nounset
 
 readonly NAME='disk-events'
 readonly DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-readonly JOB_FILE="$DIR/$NAME-job.sh"
+readonly JOB_FILE="$DIR/lib/$NAME-job.sh"
 readonly JOBS_FILE="./tmp/$NAME.jobs"
 readonly TMP_FILE="./tmp/$NAME.tmp"
 readonly SERVICE_FILE="/etc/systemd/system/$NAME.service"

@@ -58,4 +58,3 @@ function read_jobs {
       fi
    done < "$JOBS_FILE"
 }
-
