@@ -7,10 +7,10 @@ if [ ! -f "$JOBS_FILE" ]; then
 fi
 
 # fix jobs file
-if [ ! -f "JOB_FILE" ]; then
+# if [ -f "PROCESS_FILE" ]; then
 
-   chmod +x "$JOB_FILE"
-fi
+#    chmod +x "$PROCESS_FILE"
+# fi
 
 # add service for disk mount/unmount monitoring
 if [ ! -f "$SERVICE_FILE" ]; then
@@ -25,7 +25,7 @@ if [ ! -f "$SERVICE_FILE" ]; then
 
 [Service]
 KillMode=process
-ExecStart=$JOB_FILE --log=true
+ExecStart=$PROCESS_FILE --log=true
 
 [Install]
 EOF
