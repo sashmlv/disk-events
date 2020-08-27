@@ -4,8 +4,18 @@ if [ "$cli_cmd" == 'unset' ]; then
 
    print_jobs # contains read_jobs
 
-   printf 'Enter record id: '
-   read id
+   if [[ "${#ids[@]}" -eq 0 ]]; then
+
+      printf 'Nothing to remove'
+      exit
+   fi
+
+   id=
+   while [[ -z "$id" ]]; do
+
+      printf 'Enter record id: '
+      read id
+   done
 
    # check access
    touch "$JOBS_FILE" 2> /dev/null || {
@@ -23,13 +33,19 @@ if [ "$cli_cmd" == 'unset' ]; then
    label="${labels[$id]}"
    label_escaped=$(echo "${label}" | xargs -d '\n' systemd-escape | sed 's/\\x/\\\\x/g')
    label_found=false
-   unset 'jobs[$id]'
+   new_ids=() # remove id from ids
+   for idx in "${ids[@]}"; do
+
+      [[ "$idx" != "$id" ]] && new_ids+=("$idx")
+   done
+   ids=("${new_ids[@]}")
+   unset new_ids
    unset 'labels[$id]'
 
    # try find job like this label
-   for job_id in "${!labels[@]}"; do
+   for id in "${ids[@]}"; do
 
-      if [ "${labels[$job_id]}" == "$label" ]; then
+      if [ "${labels[$id]}" == "$label" ]; then
 
          label_found=true
       fi
@@ -63,9 +79,19 @@ if [ "$cli_cmd" == 'unset' ]; then
 
          done < "$SERVICE_FILE"
 
-         # update service file
-         printf "%s\n" "${content[@]}" > "$SERVICE_FILE"
-         systemctl daemon-reload
+         if [[ "${#ids[@]}" -eq 0 ]]; then
+
+            # remove service file if no jobs
+            systemctl stop "$NAME.service"
+            systemctl disable "$NAME.service"
+            systemctl daemon-reload
+            rm -f "$SERVICE_FILE"
+         else
+
+            # update service file
+            printf "%s\n" "${content[@]}" > "$SERVICE_FILE"
+            systemctl daemon-reload
+         fi
       fi
    fi
 
