@@ -65,10 +65,9 @@ if [ "$cli_cmd" == 'unset' ]; then
 
          # update service file
          printf "%s\n" "${content[@]}" > "$SERVICE_FILE"
+         systemctl daemon-reload
       fi
    fi
-
-   systemctl daemon-reload
 
    if grep -qP "^<${id}>" "$JOBS_FILE"; then record_found=true; fi
 

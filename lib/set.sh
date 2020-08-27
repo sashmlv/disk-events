@@ -57,7 +57,7 @@ if [ "$cli_cmd" == 'set' ]; then
       fi
    done
 
-   # add service lines
+   # add systemd lines
    readonly conditionPathIsMountPoint="ConditionPathIsMountPoint=|$mount_point"
    readonly wantedBy="WantedBy=$mount_unit"
    awk -v conditionPathIsMountPoint="$conditionPathIsMountPoint" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print conditionPathIsMountPoint; next }; /\[Install\]/ { print; print wantedBy; next }1' "$SERVICE_FILE" | uniq > "$TMP_FILE"
@@ -108,8 +108,7 @@ if [ "$cli_cmd" == 'set' ]; then
       ((n > last_id)) && last_id=$n
    done
 
-   ((last_id++))
-
+   last_id=$((last_id+1))
    cli_id="$last_id"
    ids+=("$last_id")
    labels["$cli_id"]="$cli_label"
