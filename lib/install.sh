@@ -6,11 +6,11 @@ if [ ! -f "$JOBS_FILE" ]; then
    touch "$JOBS_FILE"
 fi
 
-# fix jobs file
-# if [ -f "PROCESS_FILE" ]; then
+# fix process file
+if [[ -f "$PROCESS_FILE" ]] && [[ -x "$PROCESS_FILE" ]] ; then
 
-#    chmod +x "$PROCESS_FILE"
-# fi
+   chmod +x "$PROCESS_FILE"
+fi
 
 # add service for disk mount/unmount monitoring
 if [ ! -f "$SERVICE_FILE" ]; then
