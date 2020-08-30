@@ -1,32 +1,43 @@
 #!/usr/bin/env bash
 
-# add jobs file
-if [ ! -f "$JOBS_FILE" ]; then
+# add log file
+if [[ ! -f "$log_file" ]]; then
 
-   touch "$JOBS_FILE"
+   touch "$log_file"
+   printf "Log file created: %s\n" "$log_file"
+fi
+
+# add jobs file
+if [[ ! -f "$jobs_file" ]]; then
+
+   touch "$jobs_file"
+   log "File for jobs created: %s\n" "$jobs_file"
 fi
 
 # fix process file
-if [[ -f "$PROCESS_FILE" ]] && [[ -x "$PROCESS_FILE" ]] ; then
+if [[ -f "$process_file" ]] && [[ ! -x "$process_file" ]] ; then
 
-   chmod +x "$PROCESS_FILE"
+   chmod +x "$process_file"
+   log "Added execute permissions for process file: %s\n" "$process_file"
 fi
 
 # add service for disk mount/unmount monitoring
-if [ ! -f "$SERVICE_FILE" ]; then
+if [[ ! -f "$service_file" ]]; then
 
-   touch "$SERVICE_FILE" 2> /dev/null || {
-      printf "Can't write service file, permission denied: %s\n" "$SERVICE_FILE"
+   touch "$service_file" 2> /dev/null || {
+      log "Can't write service file, permission denied: %s\n" "$service_file"
       exit
    }
 
-   cat > "$SERVICE_FILE" <<EOF
+   cat > "$service_file" <<EOF
 [Unit]
 
 [Service]
 KillMode=process
-ExecStart=$PROCESS_FILE --log=true
+ExecStart=$process_file --log=true
 
 [Install]
 EOF
+
+   log "Service file added: %s\n" "$service_file"
 fi

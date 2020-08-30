@@ -1,55 +1,55 @@
 #!/usr/bin/env bash
 
-readonly NAME='disk-events'
-readonly DEFAULT_TIMEOUT=300
-readonly BATCH_MARKER='------------'
-readonly DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-readonly JOBS_FILE="$DIR/tmp/$NAME.jobs"
-readonly PID_FILE="$DIR/tmp/$NAME.pid"
-readonly JOB_FIFO_PATH="$DIR/tmp/$NAME.job.tmp"
-readonly RESTART_FIFO_PATH="$DIR/tmp/$NAME.seconds.tmp"
-readonly LOG_FILE="$DIR/tmp/$NAME.log"
-LOG=
+readonly name='disk-events'
+readonly default_timeout=300
+readonly batch_marker='------------'
+readonly dir="$( cd "$( dirname "${bash_source[0]}" )" >/dev/null 2>&1 && pwd )"
+readonly jobs_file="$dir/tmp/$name.jobs"
+readonly pid_file="$dir/tmp/$name.pid"
+readonly job_fifo_path="$dir/tmp/$name.job.tmp"
+readonly restart_fifo_path="$dir/tmp/$name.seconds.tmp"
+readonly log_file="$dir/tmp/$name.log"
+log=
 
 # CLI ARGUMENTS -------------------------------------------------------------------------------------
 
 cli_log=
 
-if [ ! -z "$*" ]; then
+if [[ ! -z "$*" ]]; then
 
-   readonly AWK_CUT_ARG_LOG='match($0, /(--log\ |--log=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--log\ |--log=)|\ $/, "", str); print str }'
+   readonly awk_cut_arg_log='match($0, /(--log\ |--log=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--log\ |--log=)|\ $/, "", str); print str }'
 
-   cli_log=$(echo "$*" | awk "$AWK_CUT_ARG_LOG")
+   cli_log=$(echo "$*" | awk "$awk_cut_arg_log")
 
    if [[ ! "$cli_log" =~ ^(true|false)$ ]]; then
 
       cli_log=
-      printf '%s: Bad "--log" value, allowed: true or false\n' "$NAME" | tee -a "$LOG_FILE"
+      printf '%s: Bad "--log" value, allowed: true or false\n' "$name" | tee -a "$log_file"
    fi
    LOG="$cli_log"
 fi
 
 # FUNCTIONS -----------------------------------------------------------------------------------------
 
-source "${DIR}/lib/log.sh"
-source "${DIR}/lib/read_jobs.sh"
+source "${dir}/lib/log.sh"
+source "${dir}/lib/read_jobs.sh"
 
 read_jobs
 
 if [[ "${#ids[@]}" -eq 0 ]]; then
 
-   log '%s: There are no job data\n' "$NAME"
+   log '%s: There are no job data\n' "$name"
    exit
 fi
 
-log '%s: Read jobs success: %s\n' "$NAME" "$JOBS_FILE"
+log '%s: Read jobs success: %s\n' "$name" "$jobs_file"
 
-source "${DIR}/lib/job.sh"
+source "${dir}/lib/job.sh"
 
 # GET MOUNT POINTS, DEVS, OPTS, ... -----------------------------------------------------------------
 
-source "${DIR}/lib/get_data.sh"
+source "${dir}/lib/get_data.sh"
 
 # HANDLE EVENTS -------------------------------------------------------------------------------------
 
-source "${DIR}/lib/events-handler.sh"
+source "${dir}/lib/events_handler.sh"

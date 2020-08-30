@@ -5,45 +5,43 @@
 set -o errexit
 set -o pipefail
 set -o nounset
-# [[ "${DEBUG}" == 'true' ]] && set -o xtrace
+# [[ "${debug}" == 'true' ]] && set -o xtrace
 
-readonly NAME='disk-events'
-readonly DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-readonly PROCESS_FILE="$DIR/lib/process.sh"
-readonly JOBS_FILE="./tmp/$NAME.jobs"
-readonly TMP_FILE="./tmp/$NAME.tmp"
-readonly SERVICE_FILE="/etc/systemd/system/$NAME.service"
-readonly LOG_FILE="$DIR/tmp/$NAME.log"
-LOG=
+readonly name='disk-events'
+readonly dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+readonly process_file="$dir/lib/process.sh"
+readonly jobs_file="./tmp/$name.jobs"
+readonly tmp_file="./tmp/$name.tmp"
+readonly service_file="/etc/systemd/system/$name.service"
+readonly log_file="$dir/tmp/$name.log"
+log=true
 
-source "${DIR}/lib/log.sh"
+source "${dir}/lib/log.sh"
+source "${dir}/lib/install.sh"
 
-# CHECK UTILS ---------------------------------------------------------------------------------------
+if [[ ! -x "$(command -v fswatch)" ]]; then
 
-if [ ! -x "$(command -v fswatch)" ]; then
-
-   printf '"fswatch" not found, please install "fswatch"\n'
+   log '"fswatch" not found, please install "fswatch"\n'
    exit
 fi
 
-# LOAD LIB ------------------------------------------------------------------------------------------
-
-source "${DIR}/lib/read_jobs.sh"
-source "${DIR}/lib/print_jobs.sh"
-
-# CLI ARGUMENTS -------------------------------------------------------------------------------------
-
-source "${DIR}/lib/cli_arguments.sh"
+source "${dir}/lib/validate.sh"
+source "${dir}/lib/cli_arguments.sh"
+source "${dir}/lib/read_jobs.sh"
+source "${dir}/lib/print_jobs.sh"
+source "${dir}/lib/get_mount_point.sh"
+source "${dir}/lib/get_mount_unit.sh"
+source "${dir}/lib/get_watch_path.sh"
 
 # COMMAND -------------------------------------------------------------------------------------------
 
-COMMANDS=('set' 'unset' 'print' 'uninstall' 'quit')
+commands=('set' 'unset' 'print' 'uninstall' 'quit')
 
-if [ -z "$cli_cmd" ] || [[ ! " ${COMMANDS[@]} " =~ " ${cli_cmd} " ]]; then
+if [ -z "$cli_cmd" ] || [[ ! " ${commands[@]} " =~ " ${cli_cmd} " ]]; then
 
    echo 'Select command: '
-   echo '1. set disk'
-   echo '2. unset disk'
+   echo '1. set job'
+   echo '2. unset job'
    echo '3. print jobs'
    echo '4. uninstall'
    echo '5. quit'
@@ -61,22 +59,19 @@ if [ -z "$cli_cmd" ] || [[ ! " ${COMMANDS[@]} " =~ " ${cli_cmd} " ]]; then
    esac
 fi
 
-# QUIT ----------------------------------------------------------------------------------------------
-
-if [ "$cli_cmd" == 'quit' ]; then printf '%s' "$cli_cmd"; exit; fi
-
-# UNINSTALL -----------------------------------------------------------------------------------------
-
-if [ "$cli_cmd" == 'uninstall' ]; then
-
-   systemctl stop "$NAME.service"
-   systemctl disable "$NAME.service"
-   systemctl daemon-reload
-   rm -f "$SERVICE_FILE"
+if [ "$cli_cmd" == 'quit' ]; then
+   printf '%s' "$cli_cmd"
    exit
 fi
 
-# PRINT JOBS ----------------------------------------------------------------------------------------
+if [ "$cli_cmd" == 'uninstall' ]; then
+
+   systemctl stop "$name.service"
+   systemctl disable "$name.service"
+   systemctl daemon-reload
+   rm -f "$service_file"
+   exit
+fi
 
 if [ "$cli_cmd" == 'print' ]; then
 
@@ -84,14 +79,19 @@ if [ "$cli_cmd" == 'print' ]; then
    exit
 fi
 
-# INSTALL -------------------------------------------------------------------------------------------
+if [ "$cli_cmd" == 'set' ]; then
 
-source "${DIR}/lib/install.sh"
+   read_jobs
 
-# SET RECORD ----------------------------------------------------------------------------------------
+   source "${dir}/lib/set_job.sh"
 
-source "${DIR}/lib/set.sh"
+   set_job
 
-# UNSET RECORD --------------------------------------------------------------------------------------
+   exit
+fi
 
-source "${DIR}/lib/unset.sh"
+if [ "$cli_cmd" == 'unset' ]; then
+
+   source "${dir}/lib/unset_job.sh"
+   exit
+fi

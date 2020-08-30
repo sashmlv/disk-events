@@ -2,8 +2,8 @@
 
 function log {
 
-   if [ "$LOG" == "true" ]; then
+   if [[ "$log" == "true" ]]; then
 
-      printf "$@" | tee -a "$LOG_FILE"
+      printf "${name}: $@" | tee -a "${log_file}"
    fi
 }

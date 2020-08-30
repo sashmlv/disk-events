@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-readonly cli_cmd=$1
+declare -r cli_cmd="${1:-}"
 cli_id=
 cli_label=
 cli_path=
@@ -8,9 +8,9 @@ cli_timeout=
 cli_job_cmd=
 cli_fswatch_opt=
 
-if [ ! -z "$cli_cmd" ]; then shift; fi
+if [[ ! -z "$cli_cmd" ]]; then shift; fi
 
-if [ ! -z "$*" ]; then
+if [[ ! -z "$*" ]]; then
 
    var_name=
 
@@ -27,9 +27,9 @@ if [ ! -z "$*" ]; then
    done
 
    # remove last space added abowe
-   if [ ! -z "$cli_label" ]; then cli_label=$(echo "$cli_label" | sed 's/\s$//'); fi
-   if [ ! -z "$cli_path" ]; then cli_path=$(echo "$cli_path" | sed 's/\s$//'); fi
-   if [ ! -z "$cli_timeout" ]; then cli_timeout=$(echo "$cli_timeout" | sed 's/\s$//'); fi
-   if [ ! -z "$cli_job_cmd" ]; then cli_job_cmd=$(echo "$cli_job_cmd" | sed 's/\s$//'); fi
-   if [ ! -z "$cli_fswatch_opt" ]; then cli_fswatch_opt=$(echo "$cli_fswatch_opt" | sed 's/\s$//'); fi
+   if [[ ! -z "$cli_label" ]]; then cli_label=$(echo "$cli_label" | sed 's/\s$//'); fi
+   if [[ ! -z "$cli_path" ]]; then cli_path=$(echo "$cli_path" | sed 's/\s$//'); fi
+   if [[ ! -z "$cli_timeout" ]]; then cli_timeout=$(echo "$cli_timeout" | sed 's/\s$//'); fi
+   if [[ ! -z "$cli_job_cmd" ]]; then cli_job_cmd=$(echo "$cli_job_cmd" | sed 's/\s$//'); fi
+   if [[ ! -z "$cli_fswatch_opt" ]]; then cli_fswatch_opt=$(echo "$cli_fswatch_opt" | sed 's/\s$//'); fi
 fi

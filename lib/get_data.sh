@@ -6,8 +6,8 @@ watch_opts=()
 mount_point=
 path=
 
-readonly SED_CUT_DEV='s/^PKNAME="\|"\sLABEL.\+//g' # cut dev
-readonly SED_CUT_MOUNT='s/.\+MOUNTPOINT="\|\"$//g' # cut mount
+readonly sed_cut_dev='s/^PKNAME="\|"\sLABEL.\+//g' # cut dev
+readonly sed_cut_mount='s/.\+MOUNTPOINT="\|\"$//g' # cut mount
 
 while read line; do
 
@@ -15,12 +15,12 @@ while read line; do
 
       if [[ "$line" =~ "${labels[$id]}" ]]; then
 
-         devs["$id"]=$(echo "$line" | sed "$SED_CUT_DEV")
-         mount_point=$(echo "$line" | sed "$SED_CUT_MOUNT")
+         devs["$id"]=$(echo "$line" | sed "$sed_cut_dev")
+         mount_point=$(echo "$line" | sed "$sed_cut_mount")
          path=$(echo "${paths[$id]}" | sed 's/^\(\.\/\|\/\)//')
 
 
-         if [ ! -z "$path" ]; then
+         if [[ ! -z "$path" ]]; then
 
             watch_path="$mount_point/$path"
          else
@@ -39,6 +39,6 @@ done < <(lsblk -Ppo pkname,label,mountpoint)
 
 if [[ "${#watch_paths[@]}" -eq 0 ]]; then
 
-   log '%s: No path found for watching\n' "$NAME"
+   log '%s: No path found for watching\n' "$name"
    exit
 fi
