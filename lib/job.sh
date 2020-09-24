@@ -3,9 +3,9 @@
 function job {
 
    declare -A args
-   local timeout=
-   local key=
-   local val=
+   declare timeout=
+   declare key=
+   declare val=
 
    while IFS= read line; do
 

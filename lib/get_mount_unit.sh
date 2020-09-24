@@ -2,8 +2,9 @@
 
 function get_mount_unit {
 
-   local label="${1:-}"
-
+   declare label="${1:-}"
+   declare no_log="${2:-}"
+   declare mount_unit=
    if [[ -z "${label}" ]]; then
 
       log "Can't get mount unit, provide disk label\n" >&2
@@ -11,11 +12,14 @@ function get_mount_unit {
       return
    fi
 
-   mount_unit=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -0 systemd-escape -u | grep "${label}" | awk '{$1=$1};1' | xargs -d '\n' systemd-escape | sed 's/\x/\\x/g')
+   mount_unit=$(systemctl list-units -t mount | awk 'match($0, /\ *(.+\.mount)\ */) { str=substr($0, RSTART, RLENGTH); print str }' | xargs -r -0 systemd-escape -u | grep "${label}" | awk '{$1=$1};1' | xargs -r -d '\n' systemd-escape | sed 's/\x/\\x/g')
 
    if [[ -z "$mount_unit" ]]; then
 
-      log "Can't get mount unit, for: %s\n" "$label" >&2
+      if [[ ! "${no_log}" == "no-log" ]]; then
+
+         log "Can't get mount unit, for: %s\n" "$label" >&2
+      fi
       echo false
       return
    else

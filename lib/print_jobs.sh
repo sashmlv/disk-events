@@ -2,8 +2,6 @@
 
 function print_jobs {
 
-   read_jobs
-
    readonly id_title='id'
    readonly label_title='label'
    readonly path_title='path'

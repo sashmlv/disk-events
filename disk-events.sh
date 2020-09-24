@@ -17,7 +17,6 @@ readonly log_file="$dir/tmp/$name.log"
 log=true
 
 source "${dir}/lib/log.sh"
-source "${dir}/lib/install.sh"
 
 if [[ ! -x "$(command -v fswatch)" ]]; then
 
@@ -25,13 +24,17 @@ if [[ ! -x "$(command -v fswatch)" ]]; then
    exit
 fi
 
+source "${dir}/lib/read_jobs.sh"
+
+read_jobs
+
 source "${dir}/lib/validate.sh"
 source "${dir}/lib/cli_arguments.sh"
-source "${dir}/lib/read_jobs.sh"
 source "${dir}/lib/print_jobs.sh"
 source "${dir}/lib/get_mount_point.sh"
 source "${dir}/lib/get_mount_unit.sh"
 source "${dir}/lib/get_watch_path.sh"
+source "${dir}/lib/install.sh"
 
 # COMMAND -------------------------------------------------------------------------------------------
 
@@ -80,8 +83,6 @@ if [ "$cli_cmd" == 'print' ]; then
 fi
 
 if [ "$cli_cmd" == 'set' ]; then
-
-   read_jobs
 
    source "${dir}/lib/set_job.sh"
 

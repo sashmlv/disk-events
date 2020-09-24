@@ -2,8 +2,9 @@
 
 function get_watch_path {
 
-   local mount_point="${1:-}"
-   local path="${2:-}"
+   declare mount_point="${1:-}"
+   declare path="${2:-}"
+   declare watch_path=
 
    if [[ -z "${mount_point}" ]]; then
 

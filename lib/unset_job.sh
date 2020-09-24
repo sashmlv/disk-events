@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-print_jobs # contains read_jobs
+print_jobs
 
 if [[ "${#ids[@]}" -eq 0 ]]; then
 
@@ -29,7 +29,7 @@ touch "${service_file}" 2> /dev/null || {
 
 record_found=false
 label="${labels[$id]}"
-label_escaped=$(echo "${label}" | xargs -d '\n' systemd-escape | sed 's/\\x/\\\\x/g')
+label_escaped=$(echo "${label}" | xargs -r -d '\n' systemd-escape | sed 's/\\x/\\\\x/g')
 label_found=false
 new_ids=() # remove id from ids
 for idx in "${ids[@]}"; do
@@ -53,7 +53,7 @@ done
 if [[ "${label_found}" == "false" ]]; then
 
    mount=$(grep -m1 -oP "[^=]+${label_escaped}\.mount$" "${service_file}" || true)
-   mount_point=$(echo "${mount}" | sed 's/\.mount$//' | xargs -d '\n' systemd-escape -u )
+   mount_point=$(echo "${mount}" | sed 's/\.mount$//' | xargs -r -d '\n' systemd-escape -u )
 
    if [[ ! -z "${mount}" ]] && [[ ! -z "${mount_point}" ]]; then
 
