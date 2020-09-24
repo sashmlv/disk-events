@@ -105,6 +105,11 @@ if [[ "${#labels[@]}" -gt 0 ]]; then
                printf "Can't write service file, permission denied: %s\n" "$service_file"
                exit
             }
+
+            # restart service
+            systemctl enable "$name.service"
+            systemctl start "$name.service"
+            systemctl daemon-reload
          fi
       fi
    done
