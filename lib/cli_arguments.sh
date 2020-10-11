@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-declare -r cli_cmd="${1:-}"
-cli_id=
-cli_label=
-cli_path=
-cli_timeout=
-cli_job_cmd=
-cli_fswatch_opt=
+declare cli_cmd="${1:-}"
+declare cli_id=
+declare cli_label=
+declare cli_path=
+declare cli_timeout=
+declare cli_job_cmd=
+declare cli_fswatch_opt=
 
 if [[ ! -z "$cli_cmd" ]]; then shift; fi
 
