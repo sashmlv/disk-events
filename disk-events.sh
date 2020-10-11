@@ -32,6 +32,9 @@ source "${dir}/lib/validate.sh"
 source "${dir}/lib/cli_arguments.sh"
 source "${dir}/lib/print_jobs.sh"
 source "${dir}/lib/print_service.sh"
+source "${dir}/lib/service_start.sh"
+source "${dir}/lib/service_stop.sh"
+source "${dir}/lib/service_status.sh"
 source "${dir}/lib/get_mount_point.sh"
 source "${dir}/lib/get_mount_unit.sh"
 source "${dir}/lib/get_watch_path.sh"
@@ -48,16 +51,22 @@ if [ -z "$cli_cmd" ] || [[ ! " ${commands[@]} " =~ " ${cli_cmd} " ]]; then
    echo '2. unset job'
    echo '3. print jobs'
    echo '4. print service file'
-   echo '5. uninstall'
-   echo '6. quit'
+   echo '5. service start'
+   echo '6. service stop'
+   echo '7. service status'
+   echo '8. uninstall'
+   echo '9. quit'
    read cli_cmd
    case "$cli_cmd" in
       1) cli_cmd='set';;
       2) cli_cmd='unset';;
       3) cli_cmd='print';;
       4) cli_cmd='prints';;
-      5) cli_cmd='uninstall';;
-      6) cli_cmd='quit';;
+      5) cli_cmd='start';;
+      6) cli_cmd='stop';;
+      7) cli_cmd='status';;
+      8) cli_cmd='uninstall';;
+      9) cli_cmd='quit';;
       *)
          echo "Invalid option $cli_cmd"
          exit
@@ -88,6 +97,24 @@ fi
 if [ "$cli_cmd" == 'prints' ]; then
 
    print_service
+   exit
+fi
+
+if [ "$cli_cmd" == 'start' ]; then
+
+   service_start
+   exit
+fi
+
+if [ "$cli_cmd" == 'stop' ]; then
+
+   service_stop
+   exit
+fi
+
+if [ "$cli_cmd" == 'status' ]; then
+
+   service_status
    exit
 fi
 
