@@ -43,8 +43,8 @@ function set_job {
    done
 
    # add systemd lines
-   readonly conditionPathIsMountPoint="ConditionPathIsMountPoint=|$mount_point"
-   readonly wantedBy="WantedBy=$mount_unit"
+   declare conditionPathIsMountPoint="ConditionPathIsMountPoint=|$mount_point"
+   declare wantedBy="WantedBy=$mount_unit"
    awk -v conditionPathIsMountPoint="$conditionPathIsMountPoint" -v wantedBy="$wantedBy" '/\[Unit\]/ { print; print conditionPathIsMountPoint; next }; /\[Install\]/ { print; print wantedBy; next }1' "$service_file" | awk '!NF || !x[$0]++' > "$tmp_file"
    mv -f "$tmp_file" "$service_file" 2> /dev/null || {
       printf "Can't write service file, permission denied: %s\n" "$service_file"

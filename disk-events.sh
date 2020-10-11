@@ -9,7 +9,7 @@ set -o nounset
 
 readonly name='disk-events'
 readonly dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-readonly process_file="$dir/lib/process.sh"
+readonly process_file="$dir/process.sh"
 readonly jobs_file="./tmp/$name.jobs"
 readonly tmp_file="./tmp/$name.tmp"
 readonly service_file="/etc/systemd/system/$name.service"
@@ -38,11 +38,13 @@ source "${dir}/lib/service_status.sh"
 source "${dir}/lib/get_mount_point.sh"
 source "${dir}/lib/get_mount_unit.sh"
 source "${dir}/lib/get_watch_path.sh"
+source "${dir}/lib/set_job.sh"
+source "${dir}/lib/unset_job.sh"
 source "${dir}/lib/install.sh"
 
 # COMMAND -------------------------------------------------------------------------------------------
 
-commands=('set' 'unset' 'print' 'uninstall' 'quit')
+commands=('set' 'unset' 'print' 'print-service' 'start' 'stop' 'status' 'uninstall' 'quit')
 
 if [ -z "$cli_cmd" ] || [[ ! " ${commands[@]} " =~ " ${cli_cmd} " ]]; then
 
@@ -61,7 +63,7 @@ if [ -z "$cli_cmd" ] || [[ ! " ${commands[@]} " =~ " ${cli_cmd} " ]]; then
       1) cli_cmd='set';;
       2) cli_cmd='unset';;
       3) cli_cmd='print';;
-      4) cli_cmd='prints';;
+      4) cli_cmd='print-service';;
       5) cli_cmd='start';;
       6) cli_cmd='stop';;
       7) cli_cmd='status';;
@@ -94,7 +96,7 @@ if [ "$cli_cmd" == 'print' ]; then
    exit
 fi
 
-if [ "$cli_cmd" == 'prints' ]; then
+if [ "$cli_cmd" == 'print-service' ]; then
 
    print_service
    exit
@@ -102,6 +104,7 @@ fi
 
 if [ "$cli_cmd" == 'start' ]; then
 
+   install
    service_start
    exit
 fi
@@ -120,15 +123,14 @@ fi
 
 if [ "$cli_cmd" == 'set' ]; then
 
-   source "${dir}/lib/set_job.sh"
-
+   install
    set_job
-
    exit
 fi
 
 if [ "$cli_cmd" == 'unset' ]; then
 
-   source "${dir}/lib/unset_job.sh"
+   install
+   unset_job
    exit
 fi
