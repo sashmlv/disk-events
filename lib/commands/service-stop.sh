@@ -8,5 +8,4 @@ function service_stop {
    kill -- -"$previous_pid" 2>/dev/null
    systemctl stop "$name.service"
    systemctl daemon-reload
-   exit
 }

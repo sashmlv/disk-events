@@ -11,19 +11,19 @@ function validate {
 
    if [[ -z "${key}" ]] || [[ -z "${val}" ]]; then
 
-      [[ "${log}" == 'log' ]] && log "validate: Can't validate parameter, empty arguments\n" >&2
+      [[ "${log}" == 'log' ]] && log "validate: Can't validate parameter, empty arguments\n"
       echo false
       return
 
    elif [[ "${key}" == 'label' ]] && [[ "${val}" =~ $unsafe_rgx ]]; then
 
-      [[ "${log}" == 'log' ]] && log 'validate: Disk label contains not a safe symbols\n' >&2
+      [[ "${log}" == 'log' ]] && log 'validate: Disk label contains not a safe symbols\n'
       echo false
       return
 
    elif [[ "${key}" == 'timeout' ]] && [[ ! "${val}" =~ $num_rgx ]]; then
 
-      [[ "${log}" == 'log' ]] && log 'validate: Job timeout not valid: %s\n' "${val}" >&2
+      [[ "${log}" == 'log' ]] && log 'validate: Job timeout not valid: %s\n' "${val}"
       echo false
       return
    fi

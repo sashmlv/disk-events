@@ -8,5 +8,4 @@ function print_service {
    else
       cat "$service_file"
    fi
-   exit
 }

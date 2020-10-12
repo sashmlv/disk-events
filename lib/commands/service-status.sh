@@ -3,5 +3,4 @@
 function service_status {
 
    systemctl status "$name.service"
-   exit
 }

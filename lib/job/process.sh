@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# executing on mount/umount disks
+
 readonly name='disk-events'
 readonly default_timeout=300
 readonly batch_marker='------------'
@@ -12,20 +14,19 @@ readonly log_file="${dir}/tmp/$name.log"
 
 # CLI ARGUMENTS -------------------------------------------------------------------------------------
 
-cli_log=
+logger= # for log.sh
 
 if [[ ! -z "$*" ]]; then
 
-   readonly awk_cut_arg_log='match($0, /(--log\ |--log=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--log\ |--log=)|\ $/, "", str); print str }'
+   readonly awk_cut_arg_log='match($0, /(--logger\ |--logger=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--logger\ |--logger=)|\ $/, "", str); print str }'
 
-   cli_log=$(echo "$*" | awk "$awk_cut_arg_log")
+   logger=$(echo "$*" | awk "$awk_cut_arg_log")
 
-   if [[ ! "$cli_log" =~ ^(true|false)$ ]]; then
+   if [[ ! "$logger" =~ ^(true|false)$ ]]; then
 
-      cli_log=
-      printf '%s: Bad "--log" value, allowed: true or false\n' "$name" | tee -a "$log_file"
+      logger=
+      printf '%s: Bad "--logger" value, allowed: true or false\n' "$name" | tee -a "$log_file"
    fi
-   LOG="$cli_log"
 fi
 
 # FUNCTIONS -----------------------------------------------------------------------------------------

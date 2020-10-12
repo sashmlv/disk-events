@@ -11,6 +11,4 @@ function service_start {
       systemctl start "$name.service"
       systemctl daemon-reload
    fi
-
-   exit
 }

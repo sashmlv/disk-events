@@ -8,12 +8,12 @@ function get_watch_path {
 
    if [[ -z "${mount_point}" ]]; then
 
-      log "get_watch_path: Can't get watch path, provide mount point\n" >&2
+      log "get_watch_path: Can't get watch path, provide mount point\n"
       echo false
       return
    elif [[ -z "${path}" ]]; then
 
-      log "get_watch_path: Can't get watch path, provide watching path\n" >&2
+      log "get_watch_path: Can't get watch path, provide watching path\n"
       echo false
       return
    else

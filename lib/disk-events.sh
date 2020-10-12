@@ -7,7 +7,7 @@ readonly pid_file="${dir}/tmp/$name.pid"
 readonly log_file="${dir}/tmp/$name.log"
 readonly process_file="${dir}/lib/job/process.sh"
 readonly service_file="/etc/systemd/system/$name.service"
-log=true
+logger=true
 
 source "${dir}/lib/functions/log.sh"
 
@@ -79,9 +79,12 @@ if [ "$cli_cmd" == 'uninstall' ]; then
    systemctl stop "$name.service"
    systemctl disable "$name.service"
    systemctl daemon-reload
+   log 'Disabled service: "%s"\n' "$name.service"
    rm -f "$service_file"
+   log 'Removed service file: "%s"\n' "$service_file"
    previous_pid=$(cat 2>/dev/null "$pid_file")
    kill -- -"$previous_pid" 2>/dev/null
+   log 'Process killed: "%s"\n' "$previous_pid"
    exit
 fi
 
@@ -101,12 +104,14 @@ if [ "$cli_cmd" == 'start' ]; then
 
    install
    service_start
+   log 'Service starded\n'
    exit
 fi
 
 if [ "$cli_cmd" == 'stop' ]; then
 
    service_stop
+   log 'Service stopped\n'
    exit
 fi
 

@@ -41,7 +41,7 @@ function install {
 [Service]
 KillMode=process
 WorkingDirectory=$dir
-ExecStart=$process_file --log=true
+ExecStart=$process_file --logger=true
 
 [Install]
 EOF
@@ -117,7 +117,8 @@ EOF
                systemctl enable "$name.service"
                systemctl start "$name.service"
                systemctl daemon-reload
-            fi
+               log "Service file fixed: %s, service started: %s\n" "$service_file" "$name.service"
+           fi
          fi
       done
    fi
