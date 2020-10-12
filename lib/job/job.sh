@@ -40,6 +40,7 @@ function job {
       if [[ -d "${watch_paths[${args['id']}]}" ]] || [[ -f "${watch_paths[${args['id']}]}" ]]; then
 
          log 'job: Executing job whith id: %s\n' "${args['id']}"
+         echo "<${args['id']}><0>" > $job_fifo & # countdown == 0
          eval "${args['command']}" | tee -a "$log_file"
       else
 

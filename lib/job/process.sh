@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-# executing on mount/umount disks
+# executing only on mount disks
 
 readonly name='disk-events'
 readonly default_timeout=300
 readonly batch_marker='------------'
-readonly dir="$( cd "$( dirname "${bash_source[0]}" )" >/dev/null 2>&1 && pwd )"
+readonly dir="$(cd "$(dirname "${bash_source[0]}")" >/dev/null 2>&1 && pwd)"
 readonly jobs_file="${dir}/tmp/$name.jobs"
 readonly pid_file="${dir}/tmp/$name.pid"
 readonly job_fifo_path="${dir}/tmp/$name.job.tmp"
@@ -18,7 +18,7 @@ logger= # for log.sh
 
 if [[ ! -z "$*" ]]; then
 
-   readonly awk_cut_arg_log='match($0, /(--logger\ |--logger=)[^-]*/) { str=substr($0, RSTART, RLENGTH); gsub( /^(--logger\ |--logger=)|\ $/, "", str); print str }'
+   readonly awk_cut_arg_log='match($0, /(--logger\ |--logger=)[^-]*/) {str=substr($0, RSTART, RLENGTH); gsub(/^(--logger\ |--logger=)|\ $/, "", str); print str}'
 
    logger=$(echo "$*" | awk "$awk_cut_arg_log")
 
