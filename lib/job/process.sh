@@ -4,12 +4,11 @@ readonly name='disk-events'
 readonly default_timeout=300
 readonly batch_marker='------------'
 readonly dir="$( cd "$( dirname "${bash_source[0]}" )" >/dev/null 2>&1 && pwd )"
-readonly jobs_file="$dir/tmp/$name.jobs"
-readonly pid_file="$dir/tmp/$name.pid"
-readonly job_fifo_path="$dir/tmp/$name.job.tmp"
-readonly restart_fifo_path="$dir/tmp/$name.seconds.tmp"
-readonly log_file="$dir/tmp/$name.log"
-log=
+readonly jobs_file="${dir}/tmp/$name.jobs"
+readonly pid_file="${dir}/tmp/$name.pid"
+readonly job_fifo_path="${dir}/tmp/$name.job.tmp"
+readonly restart_fifo_path="${dir}/tmp/$name.seconds.tmp"
+readonly log_file="${dir}/tmp/$name.log"
 
 # CLI ARGUMENTS -------------------------------------------------------------------------------------
 
@@ -31,8 +30,8 @@ fi
 
 # FUNCTIONS -----------------------------------------------------------------------------------------
 
-source "${dir}/lib/log.sh"
-source "${dir}/lib/read_jobs.sh"
+source "${dir}/lib/functions/log.sh"
+source "${dir}/lib/functions/read_jobs.sh"
 
 read_jobs
 
@@ -44,12 +43,12 @@ fi
 
 log '%s: Read jobs success: %s\n' "$name" "$jobs_file"
 
-source "${dir}/lib/job.sh"
+source "${dir}/lib/job/job.sh"
 
 # GET MOUNT POINTS, DEVS, OPTS, ... -----------------------------------------------------------------
 
-source "${dir}/lib/get_data.sh"
+source "${dir}/lib/job/get_data.sh"
 
 # HANDLE EVENTS -------------------------------------------------------------------------------------
 
-source "${dir}/lib/events_handler.sh"
+source "${dir}/lib/job/events_handler.sh"

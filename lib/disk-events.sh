@@ -1,22 +1,15 @@
 #!/usr/bin/env bash
 
-# CLI FORMAT: sudo ./disk-events.sh set --label=<disk label> --path=<path> --timeout=<timeout> --command=<command> --fswatch=<fswatch options>
-
-set -o errexit
-set -o pipefail
-set -o nounset
-# [[ "${debug}" == 'true' ]] && set -o xtrace
-
 readonly name='disk-events'
-readonly dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-readonly process_file="$dir/process.sh"
-readonly jobs_file="./tmp/$name.jobs"
-readonly tmp_file="./tmp/$name.tmp"
+readonly jobs_file="${dir}/tmp/$name.jobs"
+readonly tmp_file="${dir}/tmp/$name.tmp"
+readonly pid_file="${dir}/tmp/$name.pid"
+readonly log_file="${dir}/tmp/$name.log"
+readonly process_file="${dir}/lib/job/process.sh"
 readonly service_file="/etc/systemd/system/$name.service"
-readonly log_file="$dir/tmp/$name.log"
 log=true
 
-source "${dir}/lib/log.sh"
+source "${dir}/lib/functions/log.sh"
 
 if [[ ! -x "$(command -v fswatch)" ]]; then
 
@@ -24,23 +17,23 @@ if [[ ! -x "$(command -v fswatch)" ]]; then
    exit
 fi
 
-source "${dir}/lib/read_jobs.sh"
+source "${dir}/lib/functions/read_jobs.sh"
 
 read_jobs
 
-source "${dir}/lib/validate.sh"
 source "${dir}/lib/cli_arguments.sh"
-source "${dir}/lib/print_jobs.sh"
-source "${dir}/lib/print_service.sh"
-source "${dir}/lib/service_start.sh"
-source "${dir}/lib/service_stop.sh"
-source "${dir}/lib/service_status.sh"
-source "${dir}/lib/get_mount_point.sh"
-source "${dir}/lib/get_mount_unit.sh"
-source "${dir}/lib/get_watch_path.sh"
-source "${dir}/lib/set_job.sh"
-source "${dir}/lib/unset_job.sh"
-source "${dir}/lib/install.sh"
+source "${dir}/lib/functions/validate.sh"
+source "${dir}/lib/commands/print_jobs.sh"
+source "${dir}/lib/commands/print_service.sh"
+source "${dir}/lib/commands/service_start.sh"
+source "${dir}/lib/commands/service_stop.sh"
+source "${dir}/lib/commands/service_status.sh"
+source "${dir}/lib/functions/get_mount_point.sh"
+source "${dir}/lib/functions/get_mount_unit.sh"
+source "${dir}/lib/functions/get_watch_path.sh"
+source "${dir}/lib/functions/set_job.sh"
+source "${dir}/lib/functions/unset_job.sh"
+source "${dir}/lib/functions/install.sh"
 
 # COMMAND -------------------------------------------------------------------------------------------
 
@@ -87,6 +80,8 @@ if [ "$cli_cmd" == 'uninstall' ]; then
    systemctl disable "$name.service"
    systemctl daemon-reload
    rm -f "$service_file"
+   previous_pid=$(cat 2>/dev/null "$pid_file")
+   kill -- -"$previous_pid" 2>/dev/null
    exit
 fi
 

@@ -19,7 +19,6 @@ while read line; do
          mount_point=$(echo "$line" | sed "$sed_cut_mount")
          path=$(echo "${paths[$id]}" | sed 's/^\(\.\/\|\/\)//')
 
-
          if [[ ! -z "$path" ]]; then
 
             watch_path="$mount_point/$path"

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# executing on mount/umount disks
+
 # CHECK SCRIPT INSTANCE -----------------------------------------------------------------------------
 
 readonly sed_cut_key='s/^<\|>.\+$//g'

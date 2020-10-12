@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# add files
+# add service file with data from jobs file
+# start service
+
 function install {
 
    # add log file
