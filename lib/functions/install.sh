@@ -17,21 +17,21 @@ function install {
    if [[ ! -f "$jobs_file" ]]; then
 
       touch "$jobs_file"
-      log "File for jobs created: %s\n" "$jobs_file"
+      log "install: File for jobs created: %s\n" "$jobs_file"
    fi
 
    # fix process file
    if [[ -f "$process_file" ]] && [[ ! -x "$process_file" ]] ; then
 
       chmod +x "$process_file"
-      log "Added execute permissions for process file: %s\n" "$process_file"
+      log "install: Added execute permissions for process file: %s\n" "$process_file"
    fi
 
    # add service for disk mount/unmount monitoring
    if [[ ! -f "$service_file" ]] || [[ ! -s "$service_file" ]]; then
 
       touch "$service_file" 2> /dev/null || {
-         log "Can't write service file, permission denied: %s\n" "$service_file"
+         log "install: Can't write service file, permission denied: %s\n" "$service_file"
          exit
       }
 
@@ -46,7 +46,7 @@ ExecStart=$process_file --logger=true
 [Install]
 EOF
 
-      log "Service file added: %s\n" "$service_file"
+      log "install: Service file added: %s\n" "$service_file"
    fi
 
    # if we have jobs, check service file for mount points
@@ -117,7 +117,7 @@ EOF
                systemctl enable "$name.service"
                systemctl start "$name.service"
                systemctl daemon-reload
-               log "Service file fixed: %s, service started: %s\n" "$service_file" "$name.service"
+               log "install: Service file fixed: %s, service started: %s\n" "$service_file" "$name.service"
            fi
          fi
       done

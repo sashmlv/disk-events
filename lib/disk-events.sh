@@ -13,7 +13,7 @@ source "${dir}/lib/functions/log.sh"
 
 if [[ ! -x "$(command -v fswatch)" ]]; then
 
-   log '"fswatch" not found, please install "fswatch"\n'
+   log 'disk-events: "fswatch" not found, please install "fswatch"\n'
    exit
 fi
 
@@ -79,12 +79,12 @@ if [ "$cli_cmd" == 'uninstall' ]; then
    systemctl stop "$name.service"
    systemctl disable "$name.service"
    systemctl daemon-reload
-   log 'Disabled service: "%s"\n' "$name.service"
+   log 'disk-events: Disabled service: "%s"\n' "$name.service"
    rm -f "$service_file"
-   log 'Removed service file: "%s"\n' "$service_file"
+   log 'disk-events: Removed service file: "%s"\n' "$service_file"
    previous_pid=$(cat 2>/dev/null "$pid_file")
    kill -- -"$previous_pid" 2>/dev/null
-   log 'Process killed: "%s"\n' "$previous_pid"
+   log 'disk-events: Process killed: "%s"\n' "$previous_pid"
    exit
 fi
 
@@ -104,14 +104,14 @@ if [ "$cli_cmd" == 'start' ]; then
 
    install
    service_start
-   log 'Service starded\n'
+   log 'disk-events: Service starded\n'
    exit
 fi
 
 if [ "$cli_cmd" == 'stop' ]; then
 
    service_stop
-   log 'Service stopped\n'
+   log 'disk-events: Service stopped\n'
    exit
 fi
 

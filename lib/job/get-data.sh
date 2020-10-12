@@ -38,6 +38,6 @@ done < <(lsblk -Ppo pkname,label,mountpoint)
 
 if [[ "${#watch_paths[@]}" -eq 0 ]]; then
 
-   log '%s: No path found for watching\n' "$name"
+   log 'get-data: No path found for watching\n'
    exit
 fi

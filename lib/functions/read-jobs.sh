@@ -26,7 +26,7 @@ function read_jobs {
 
    if [[ ! -f "$jobs_file" ]]; then
 
-      log '%s: Job file not found\n' "$name"
+      log 'read_jobs: Job file not found\n'
       exit
    fi
 
@@ -51,8 +51,8 @@ function read_jobs {
             fswatch_opts["$id"]="$fswatch_opt"
          else
 
-            log '%s: Wrong line in the jobs file:\n' "$name"
-            log '%s: %s\n' "$name" "$line"
+            log 'read_jobs: Wrong line in the jobs file:\n'
+            log 'read_jobs: %s\n' "$line"
             exit
          fi
       fi

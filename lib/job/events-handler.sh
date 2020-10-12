@@ -9,9 +9,10 @@ readonly sed_cut_val='s/^<[^>]*><\|>$//g'
 declare -A job_seconds
 data_lines=()
 tmpstr=
+previous_pid=$(cat 2>/dev/null "$pid_file")
 
 # replace this process with new other one with params
-if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
+if kill -0 -"$previous_pid" 2>/dev/null; then
 
    job_fifo=$job_fifo_path
    restart_fifo=$restart_fifo_path
@@ -20,7 +21,7 @@ if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
 
    echo 'restart' > $job_fifo &
 
-   log '%s: Starting previous jobs\n' "$name"
+   log 'events-handler: Starting previous jobs\n'
 
    # remember previous timers state
    while read -t 0.01 line <& 3; do tmpstr="$line"; done
@@ -36,11 +37,10 @@ if pidof -o %PPID -x "$(basename $0)" >/dev/null; then
       job_seconds["$id"]="$sec"
    done
 
-   previous_pid=$(cat 2>/dev/null "$pid_file")
    kill -- -"$previous_pid"
    tmpstr=''
 
-   log '%s: Previous jobs started\n' "$name"
+   log 'events-handler: Previous jobs started\n'
 fi
 
 # START PREVIOUS JOBS IF EXISTS ---------------------------------------------------------------------
@@ -68,7 +68,7 @@ mkfifo -m 600 "$restart_fifo"
 
 echo "$$" > "$pid_file"
 
-log '%s: Running process with PID: %s\n' "$name" "$$"
+log 'events-handler: Running process with PID: %s\n' "$$"
 
 # JOB -----------------------------------------------------------------------------------------------
 
@@ -89,11 +89,11 @@ while read access_path; do
 
       echo "$current_id" > $job_fifo &
 
-      log '%s: Event for id: %s\n' "$name" "$id"
+      log 'events-handler: Event for id: %s\n' "$id"
    fi
 done < <(fswatch --batch-marker="$batch_marker" "${watch_opts[@]}" "${watch_paths[@]}") &
 
-log "%s: %s\n" "$name" "Watching: $(echo ${watch_paths[@]})"
+log "events-handler: %s\n" "Watching: $(echo ${watch_paths[@]})"
 
 declare -A job_pids
 id=
@@ -105,7 +105,8 @@ while read line < $job_fifo; do
    if [[ " ${!watch_paths[@]} " =~ " ${line} " ]]; then # reset timers after path thouch
 
       id="$line"
-      kill "${job_pids[$id]}" 2>/dev/null;
+      kill "${job_pids[$id]}" 2>/dev/null
+      log "events-handler: Killed process with pid: %s\n" "${job_pids[$id]}"
       job "<id><$id>
 <label><${labels[$id]}>
 <path><${paths[$id]}>
@@ -115,7 +116,7 @@ while read line < $job_fifo; do
 <dev><${devs[$id]}>" &
       job_pids["$id"]="$!"
 
-    elif [[ "$line" == 'restart' ]]; then
+   elif [[ "$line" == 'restart' ]]; then
 
       for id in "${!job_seconds[@]}"; do
 

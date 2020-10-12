@@ -38,11 +38,11 @@ read_jobs
 
 if [[ "${#ids[@]}" -eq 0 ]]; then
 
-   log '%s: There are no job data\n' "$name"
+   log 'process: There are no job data\n'
    exit
 fi
 
-log '%s: Read jobs success: %s\n' "$name" "$jobs_file"
+log 'process: Read jobs success: %s\n' "$jobs_file"
 
 source "${dir}/lib/job/job.sh"
 

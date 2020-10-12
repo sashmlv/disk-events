@@ -32,18 +32,18 @@ function job {
       sleep 1
       echo "<${args['id']}><$i>" > $job_fifo &
 
-      log '%s: Job id: %s, seconds: %s\n' "$name" "${args['id']}" "$i"
+      log 'job: Job id: %s, seconds: %s\n' "${args['id']}" "$i"
    done
 
    if [[ ! -z "${args['command']}" ]]; then
 
       if [[ -d "${watch_paths[${args['id']}]}" ]] || [[ -f "${watch_paths[${args['id']}]}" ]]; then
 
-         log '%s: Executing job whith id: %s\n' "$name" "${args['id']}"
+         log 'job: Executing job whith id: %s\n' "${args['id']}"
          eval "${args['command']}" | tee -a "$log_file"
       else
 
-         log '%s: Can'\''t execute job whith id: %s, path not found: %s\n' "$name" "${args['id']}" "${watch_paths[${args['id']}]}"
+         log 'job: Can'\''t execute job whith id: %s, path not found: %s\n' "${args['id']}" "${watch_paths[${args['id']}]}"
       fi
    fi
 }

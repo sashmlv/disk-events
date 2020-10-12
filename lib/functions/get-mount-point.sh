@@ -9,7 +9,7 @@ function get_mount_point {
 
    if [[ -z "${label}" ]]; then
 
-      log "mount_point: Can't get mount point, provide disk label\n"
+      log "get_mount_point: Can't get mount point, provide disk label\n"
       echo false
       return
    fi
@@ -27,7 +27,7 @@ function get_mount_point {
 
       if [[ ! "${no_log}" == "no-log" ]]; then
 
-         log "mount_point: Can't get mount point, try mount disk before: %s\n" "${label}"
+         log "get_mount_point: Can't get mount point, try mount disk before: %s\n" "${label}"
       fi
       echo false
       return

@@ -7,7 +7,7 @@ function get_mount_unit {
    declare mount_unit=
    if [[ -z "${label}" ]]; then
 
-      log "Can't get mount unit, provide disk label\n"
+      log "get_mount_unit: Can't get mount unit, provide disk label\n"
       echo false
       return
    fi
@@ -18,7 +18,7 @@ function get_mount_unit {
 
       if [[ ! "${no_log}" == "no-log" ]]; then
 
-         log "Can't get mount unit, for: %s\n" "$label"
+         log "get_mount_unit: Can't get mount unit, for: %s\n" "$label"
       fi
       echo false
       return
