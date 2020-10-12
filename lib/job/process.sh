@@ -31,7 +31,7 @@ fi
 # FUNCTIONS -----------------------------------------------------------------------------------------
 
 source "${dir}/lib/functions/log.sh"
-source "${dir}/lib/functions/read_jobs.sh"
+source "${dir}/lib/functions/read-jobs.sh"
 
 read_jobs
 
@@ -47,8 +47,8 @@ source "${dir}/lib/job/job.sh"
 
 # GET MOUNT POINTS, DEVS, OPTS, ... -----------------------------------------------------------------
 
-source "${dir}/lib/job/get_data.sh"
+source "${dir}/lib/job/get-data.sh"
 
 # HANDLE EVENTS -------------------------------------------------------------------------------------
 
-source "${dir}/lib/job/events_handler.sh"
+source "${dir}/lib/job/events-handler.sh"

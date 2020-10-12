@@ -17,22 +17,22 @@ if [[ ! -x "$(command -v fswatch)" ]]; then
    exit
 fi
 
-source "${dir}/lib/functions/read_jobs.sh"
+source "${dir}/lib/functions/read-jobs.sh"
 
 read_jobs
 
-source "${dir}/lib/cli_arguments.sh"
+source "${dir}/lib/cli-arguments.sh"
 source "${dir}/lib/functions/validate.sh"
-source "${dir}/lib/commands/print_jobs.sh"
-source "${dir}/lib/commands/print_service.sh"
-source "${dir}/lib/commands/service_start.sh"
-source "${dir}/lib/commands/service_stop.sh"
-source "${dir}/lib/commands/service_status.sh"
-source "${dir}/lib/functions/get_mount_point.sh"
-source "${dir}/lib/functions/get_mount_unit.sh"
-source "${dir}/lib/functions/get_watch_path.sh"
-source "${dir}/lib/functions/set_job.sh"
-source "${dir}/lib/functions/unset_job.sh"
+source "${dir}/lib/commands/print-jobs.sh"
+source "${dir}/lib/commands/print-service.sh"
+source "${dir}/lib/commands/service-start.sh"
+source "${dir}/lib/commands/service-stop.sh"
+source "${dir}/lib/commands/service-status.sh"
+source "${dir}/lib/functions/get-mount-point.sh"
+source "${dir}/lib/functions/get-mount-unit.sh"
+source "${dir}/lib/functions/get-watch-path.sh"
+source "${dir}/lib/functions/set-job.sh"
+source "${dir}/lib/functions/unset-job.sh"
 source "${dir}/lib/functions/install.sh"
 
 # COMMAND -------------------------------------------------------------------------------------------
