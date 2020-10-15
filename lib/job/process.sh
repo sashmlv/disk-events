@@ -32,6 +32,9 @@ fi
 # FUNCTIONS -----------------------------------------------------------------------------------------
 
 source "${dir}/lib/functions/log.sh"
+
+log 'process: It seems service started or disk has been mounted\n'
+
 source "${dir}/lib/functions/read-jobs.sh"
 
 read_jobs

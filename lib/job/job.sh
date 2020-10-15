@@ -6,6 +6,8 @@ function job {
    declare timeout=
    declare key=
    declare val=
+   readonly sed_cut_key='s/^<\|>.\+$//g'
+   readonly sed_cut_val='s/^<[^>]*><\|>$//g'
 
    while IFS= read line; do
 
@@ -32,14 +34,14 @@ function job {
       sleep 1
       echo "<${args['id']}><$i>" > $job_fifo &
 
-      log 'job: Job id: %s, seconds: %s\n' "${args['id']}" "$i"
+      log 'job: Job id: %s, seconds: %s, pid: %s\n' "${args['id']}" "$i" "${BASHPID}"
    done
 
    if [[ ! -z "${args['command']}" ]]; then
 
       if [[ -d "${watch_paths[${args['id']}]}" ]] || [[ -f "${watch_paths[${args['id']}]}" ]]; then
 
-         log 'job: Executing job whith id: %s\n' "${args['id']}"
+         log 'job: Executing job whith id: %s, and pid: %s\n' "${args['id']}" "${BASHPID}"
          echo "<${args['id']}><0>" > $job_fifo & # countdown == 0
          eval "${args['command']}" | tee -a "$log_file"
       else
