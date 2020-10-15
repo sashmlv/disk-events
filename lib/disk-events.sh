@@ -7,6 +7,14 @@ readonly pid_file="${dir}/tmp/$name.pid"
 readonly log_file="${dir}/tmp/$name.log"
 readonly process_file="${dir}/lib/job/process.sh"
 readonly service_file="/etc/systemd/system/$name.service"
+
+ids=()
+declare -A labels=()
+declare -A paths=()
+declare -A timeouts=()
+declare -A job_cmds=()
+declare -A fswatch_opts=()
+
 logger=true
 
 source "${dir}/lib/functions/log.sh"

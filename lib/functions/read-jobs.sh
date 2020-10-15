@@ -1,12 +1,5 @@
 #!/usr/bin/env bash
 
-ids=()
-declare -A labels
-declare -A paths
-declare -A timeouts
-declare -A job_cmds
-declare -A fswatch_opts
-
 function read_jobs {
 
    readonly job_rgx='^<[0-9]+><.+><.*><[0-9]+><.+><.*>$' # match job line
