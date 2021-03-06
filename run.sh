@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# CLI FORMAT: sudo ./disk-events.sh set --label=<disk label> --path=<path> --timeout=<timeout> --command=<command> --fswatch=<fswatch options>
+# CLI FORMAT: sudo ./run.sh set --label=<disk label> --path=<path> --timeout=<timeout> --command=<command> --fswatch=<fswatch options>
 
 set -o errexit
 set -o pipefail

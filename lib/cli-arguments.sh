@@ -5,6 +5,7 @@ declare cli_id=
 declare cli_label=
 declare cli_path=
 declare cli_timeout=
+declare cli_throttling=
 declare cli_job_cmd=
 declare cli_fswatch_opt=
 
@@ -20,6 +21,7 @@ if [[ ! -z "$*" ]]; then
          --label|--label=) var_name='cli_label';shift;;
          --path|--path=) var_name='cli_path';shift;;
          --timeout|--timeout=) var_name='cli_timeout';shift;;
+         --throttling|--throttling=) var_name='cli_throttling';shift;;
          --command|--command=) var_name='cli_job_cmd';shift;;
          --fswatch|--fswatch=) var_name='cli_fswatch_opt';shift;;
          *) declare "$var_name"+="$1 ";shift;;
@@ -30,6 +32,7 @@ if [[ ! -z "$*" ]]; then
    if [[ ! -z "$cli_label" ]]; then cli_label=$(echo "$cli_label" | sed 's/\s$//'); fi
    if [[ ! -z "$cli_path" ]]; then cli_path=$(echo "$cli_path" | sed 's/\s$//'); fi
    if [[ ! -z "$cli_timeout" ]]; then cli_timeout=$(echo "$cli_timeout" | sed 's/\s$//'); fi
+   if [[ ! -z "$cli_throttling" ]]; then cli_throttling=$(echo "$cli_throttling" | sed 's/\s$//'); fi
    if [[ ! -z "$cli_job_cmd" ]]; then cli_job_cmd=$(echo "$cli_job_cmd" | sed 's/\s$//'); fi
    if [[ ! -z "$cli_fswatch_opt" ]]; then cli_fswatch_opt=$(echo "$cli_fswatch_opt" | sed 's/\s$//'); fi
 fi

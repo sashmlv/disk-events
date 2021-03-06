@@ -26,5 +26,12 @@ function validate {
       [[ "${log}" == 'log' ]] && log 'validate: Job timeout not valid: %s\n' "${val}" >&2
       echo false
       return
+
+   elif [[ "${key}" == 'throttling' ]] && [[ ! "${val}" =~ $num_rgx ]]; then
+
+      [[ "${log}" == 'log' ]] && log 'validate: Job throttling not valid: %s\n' "${val}" >&2
+      echo false
+      return
+
    fi
 }

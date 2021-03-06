@@ -12,6 +12,7 @@ ids=()
 declare -A labels=()
 declare -A paths=()
 declare -A timeouts=()
+declare -A throttles=()
 declare -A job_cmds=()
 declare -A fswatch_opts=()
 

@@ -10,6 +10,11 @@ function set_job {
 
       cli_label_ok='yes'
 
+      if [[ -z "${cli_label}" ]]; then
+
+         cli_label_ok='no'
+      fi
+
       if [[ "${cli_label_ok}" == 'yes' ]] && [[ $(validate 'label' "${cli_label}") == 'false' ]]; then
 
          cli_label_ok='no'
@@ -75,6 +80,12 @@ function set_job {
       read cli_timeout
    done
 
+   while [[ $(validate 'throttle' "${cli_throttling}" 'no-log') == 'false' ]]; do
+
+      printf 'Enter timeout throttling in seconds: '
+      read cli_throttling
+   done
+
    if [ -z "$cli_job_cmd" ]; then
 
       printf 'Enter job command: '
@@ -100,6 +111,7 @@ function set_job {
    labels["$cli_id"]="$cli_label"
    paths["$cli_id"]="$cli_path"
    timeouts["$cli_id"]="$cli_timeout"
+   throttles["$cli_id"]="$cli_throttling"
    job_cmds["$cli_id"]="$cli_job_cmd"
    fswatch_opts["$cli_id"]="$cli_fswatch_opt"
    params_str="<$cli_label><$cli_path><$cli_timeout><$cli_job_cmd><$cli_fswatch_opt>"
@@ -119,7 +131,7 @@ function set_job {
 
    for id in "${ids[@]}"; do
 
-      echo "<$id><${labels[$id]}><${paths[$id]}><${timeouts[$id]}><${job_cmds[$id]}><${fswatch_opts[$id]}>" >> "$tmp_file"
+      echo "<$id><${labels[$id]}><${paths[$id]}><${timeouts[$id]}><${throttles[$id]}><${job_cmds[$id]}><${fswatch_opts[$id]}>" >> "$tmp_file"
    done
 
    sed '/^$/d' "$tmp_file" > "$jobs_file" # remove empty lines
@@ -133,6 +145,7 @@ function set_job {
    printf 'disk label: %s\n' "$cli_label"
    printf 'path: %s\n' "$cli_path"
    printf 'job timeout: %s\n' "$cli_timeout"
+   printf 'throttling: %s\n' "$cli_throttling"
    printf 'job command: %s\n' "$cli_job_cmd"
    printf 'fswatch options: %s\n' "$cli_fswatch_opt"
 }

@@ -9,11 +9,15 @@ readonly sed_cut_sec='s/^<[^>]*><\|\(>\|><[^>]*>[^.]*\)$//g'
 readonly sed_cut_pid='s/^<[^>]*><[^>]*><\|\(>\|><[^>]*>\)$//g'
 declare -A job_seconds
 declare -A job_pids
+declare -A job_timestamps
+
 id=
 sec=
 pid=
 data_lines=()
 tmpstr=
+timestamp=
+seconds=
 
 previous_pid=$(cat 2>/dev/null "$pid_file")
 echo "$$" > "$pid_file"
@@ -64,6 +68,7 @@ for id in "${!job_seconds[@]}"; do
 <label><${labels[$id]}>
 <path><${paths[$id]}>
 <timeout><${timeouts[$id]}>
+<throttling><${throttles[$id]}>
 <job_cmd><${job_cmds[$id]}>
 <fswatch_opt><${fswatch_opts[$id]}>
 <dev><${devs[$id]}>
@@ -99,6 +104,22 @@ while read access_path; do
 
    if [[ "$access_path" == "$batch_marker" ]]; then
 
+      if [[ ! -z "${job_timestamps[$id]}" ]]; then
+
+         timestamp="$(date +%s)" # calculate throttling
+         seconds="$((${timestamp}-${job_timestamps[$id]}))"
+
+         if [[ "${seconds}" -lt "${throttles[$id]}" ]]; then
+
+            log 'events-handler: Skip event %s, by timeout throttling %ssec\n' "$id" "${throttles[$id]}"
+            continue
+         fi
+      fi
+
+      job_timestamps["$id"]="$(date +%s)"
+
+      tmpstr+="<$id><${job_seconds[$id]}><${job_pids[$id]}><>"
+
       echo "$current_id" > $job_fifo &
       log 'events-handler: Event for id: %s\n' "$id"
    fi
@@ -118,6 +139,7 @@ while read line < $job_fifo; do
 <label><${labels[$id]}>
 <path><${paths[$id]}>
 <timeout><${timeouts[$id]}>
+<throttling><${throttles[$id]}>
 <job_cmd><${job_cmds[$id]}>
 <fswatch_opt><${fswatch_opts[$id]}>
 <dev><${devs[$id]}>" &

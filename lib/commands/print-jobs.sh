@@ -6,10 +6,10 @@ function print_jobs {
    readonly label_title='label'
    readonly path_title='path'
    readonly timeout_title='timeout'
+   readonly throttling_title='throttling'
    readonly job_cmd_title='command'
    readonly fswatch_opt_title='fswatch options'
-
-   readonly fields=('id' 'label' 'path' 'timeout' 'job_cmd' 'fswatch_opt')
+   readonly fields=('id' 'label' 'path' 'timeout' 'throttling' 'job_cmd' 'fswatch_opt')
 
    value_length=
    title_length=
@@ -29,6 +29,11 @@ function print_jobs {
          if [ "$field" == 'id' ]; then
 
             eval value_length="\${#id}"
+
+         elif [ "$field" == 'throttling' ]; then
+
+            eval value_length="\${#throttles[$id]}"
+
          else
 
             eval value_length="\${#${field}s[$id]}"
@@ -64,6 +69,8 @@ function print_jobs {
    printf '+'
    printf '%0.s-' $(seq 1 "${values_lengths['timeout']}")
    printf '+'
+   printf '%0.s-' $(seq 1 "${values_lengths['throttling']}")
+   printf '+'
    printf '%0.s-' $(seq 1 "${values_lengths['job_cmd']}")
    printf '+'
    printf '%0.s-' $(seq 1 "${values_lengths['fswatch_opt']}")
@@ -77,6 +84,8 @@ function print_jobs {
    printf '%'$(("${values_lengths['path']}"-1-"${#path_title}"))'s'
    printf "|\033[1m $timeout_title\033[0m"
    printf '%'$(("${values_lengths['timeout']}"-1-"${#timeout_title}"))'s'
+   printf "|\033[1m $throttling_title\033[0m"
+   printf '%'$(("${values_lengths['throttling']}"-1-"${#throttling_title}"))'s'
    printf "|\033[1m $job_cmd_title\033[0m"
    printf '%'$(("${values_lengths['job_cmd']}"-1-"${#job_cmd_title}"))'s'
    printf "|\033[1m $fswatch_opt_title\033[0m"
@@ -91,6 +100,8 @@ function print_jobs {
    printf '%0.s-' $(seq 1 "${values_lengths['path']}")
    printf '+'
    printf '%0.s-' $(seq 1 "${values_lengths['timeout']}")
+   printf '+'
+   printf '%0.s-' $(seq 1 "${values_lengths['throttling']}")
    printf '+'
    printf '%0.s-' $(seq 1 "${values_lengths['job_cmd']}")
    printf '+'
@@ -108,6 +119,8 @@ function print_jobs {
          printf '%'$(("${values_lengths['path']}"-1-"${#paths[$id]}"))'s'
          printf "| ${timeouts[$id]}"
          printf '%'$(("${values_lengths['timeout']}"-1-"${#timeouts[$id]}"))'s'
+         printf "| ${throttles[$id]}"
+         printf '%'$(("${values_lengths['throttling']}"-1-"${#throttles[$id]}"))'s'
          printf "| ${job_cmds[$id]}"
          printf '%'$(("${values_lengths['job_cmd']}"-1-"${#job_cmds[$id]}"))'s'
          printf "| ${fswatch_opts[$id]}"
@@ -122,6 +135,8 @@ function print_jobs {
          printf '%0.s-' $(seq 1 "${values_lengths['path']}")
          printf '+'
          printf '%0.s-' $(seq 1 "${values_lengths['timeout']}")
+         printf '+'
+         printf '%0.s-' $(seq 1 "${values_lengths['throttling']}")
          printf '+'
          printf '%0.s-' $(seq 1 "${values_lengths['job_cmd']}")
          printf '+'
@@ -138,6 +153,8 @@ function print_jobs {
       printf '%0.s-' $(seq 1 "${values_lengths['path']}")
       printf '+'
       printf '%0.s-' $(seq 1 "${values_lengths['timeout']}")
+      printf '+'
+      printf '%0.s-' $(seq 1 "${values_lengths['throttling']}")
       printf '+'
       printf '%0.s-' $(seq 1 "${values_lengths['job_cmd']}")
       printf '+'
