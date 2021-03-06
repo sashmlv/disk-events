@@ -58,6 +58,12 @@ function set_job {
 
    declare watch_path=
 
+   if [[ -z "${cli_path}" ]]; then
+
+      printf 'Enter path or skip: '
+      read cli_path
+   fi
+
    while [[ ! -z "${cli_path}" ]]; do
 
       watch_path=$(get_watch_path "${mount_point}" "${cli_path}")
@@ -70,7 +76,7 @@ function set_job {
          printf 'set_job: Path not found: %s\n' "${cli_path}"
       fi
 
-      printf 'Enter path: '
+      printf 'Enter path or skip: '
       read cli_path
    done
 
