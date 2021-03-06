@@ -24,7 +24,7 @@ if [[ ! -z "$*" ]]; then
          --throttling|--throttling=) var_name='cli_throttling';shift;;
          --command|--command=) var_name='cli_job_cmd';shift;;
          --fswatch|--fswatch=) var_name='cli_fswatch_opt';shift;;
-         *) declare "$var_name"+="$1 ";shift;;
+         *) declare "$var_name"="$1 ";shift;;
       esac
    done
 
